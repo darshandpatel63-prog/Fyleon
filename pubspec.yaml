@@ -27,8 +27,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ">=5.0.0 <7.0.0"
-  flutter_launcher_icons: ">=0.14.3 <1.0.0"
-  flutter_native_splash: ">=2.4.4 <3.0.0"
 
 flutter:
   uses-material-design: true
@@ -36,6 +34,10 @@ flutter:
     - assets/icon/
     - config/
 
+# Icon/splash generator CONFIG only. The tools are NOT dependencies on purpose:
+# flutter_native_splash was compiled against an old Android SDK and broke the
+# release build (checkReleaseAarMetadata). android.yml adds them temporarily
+# (flutter pub add/remove) when it creates the android/ folder.
 flutter_launcher_icons:
   android: true
   ios: false

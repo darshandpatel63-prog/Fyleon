@@ -34,6 +34,11 @@ Last updated: 2026-11-02, end of session 2 (first CI fixes).
   reported in our own Dart code, which is a good sign.
 - Run #5: duplicate queued run tried to commit `android/` again -> push rejected. FIX in android.yml: sync with
   branch tip first + push retry.
+- Run #8: build got to Gradle, then FAILED: `:flutter_native_splash:checkReleaseAarMetadata` (module compiled against
+  android-31, androidx needs 34+). FIX: removed `flutter_launcher_icons` + `flutter_native_splash` from dev_dependencies
+  (generated icon/splash files are already committed in android/). android.yml only adds them temporarily when it
+  creates android/. Other plugins may show the same kind of error; send the log if so.
+- (Run #8 first attempt had been cancelled by the runner/user: `exit code 143`; re-run was fine.)
 - `archive` constraint widened to `<5.0.0`; code uses `archiveFileBytes()` (works with archive 3.x and 4.x).
 - Possible next failure: `flutter pub get` conflict message (if some package needs different versions). Send the log.
 - `.github/workflows/*` from a ZIP is only imported by import-zip.yml if repo secret `PUSH_TOKEN` exists;
