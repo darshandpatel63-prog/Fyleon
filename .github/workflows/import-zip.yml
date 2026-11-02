@@ -1,0 +1,116 @@
+# Path in your repo: .github/workflows/import-zip.yml
+#
+# Upload a .zip to the ROOT of the main branch. This workflow unpacks it,
+# puts every file/folder in its correct place (new files are added, existing
+# files are overwritten), commits, and finally deletes the zip.
+#
+# ONE-TIME SETUP (needed only if the zip contains .github/workflows/* files):
+#   GitHub's default token is not allowed to change workflow files.
+#   Create a fine-grained token (repo access: this repo; permissions:
+#   Contents = Read and write, Workflows = Read and write) and save it as the
+#   repository secret PUSH_TOKEN (Settings > Secrets and variables > Actions).
+#   Without PUSH_TOKEN everything else is imported, but .github/workflows/
+#   is skipped (add those files by hand once).
+
+name: Import ZIP
+
+on:
+  push:
+    branches: [main]
+    paths: ['*.zip']
+  workflow_dispatch:
+
+concurrency:
+  group: import-zip
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.PUSH_TOKEN || github.token }}
+
+      - name: Unpack ZIP files from the repo root
+        id: unpack
+        env:
+          HAS_PAT: ${{ secrets.PUSH_TOKEN != '' }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob nocaseglob
+          zips=(*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No .zip file in the repo root. Nothing to do."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+          for z in "${zips[@]}"; do
+            echo "=== Importing: $z"
+            tmp="$(mktemp -d)"
+            unzip -q -o "$z" -d "$tmp"
+            rm -rf "$tmp/__MACOSX"
+            find "$tmp" -name '.DS_Store' -delete
+
+            # If the zip has exactly one top folder (e.g. "fyleon/"), open it.
+            mapfile -t top < <(find "$tmp" -mindepth 1 -maxdepth 1)
+            src="$tmp"
+            if [ ${#top[@]} -eq 1 ] && [ -d "${top[0]}" ]; then
+              src="${top[0]}"
+              echo "Using inner folder: $(basename "$src")"
+            fi
+
+            # Never let a zip touch .git or add more zips to the root.
+            rm -rf "$src/.git"
+            find "$src" -maxdepth 1 -type f -iname '*.zip' -delete
+            if [ "$HAS_PAT" != "true" ]; then
+              rm -rf "$src/.github/workflows"
+              echo "::warning::PUSH_TOKEN secret not set: .github/workflows/ from the zip was skipped."
+            fi
+
+            # Copies folders and dotfiles; existing files are overwritten.
+            cp -a "$src"/. ./
+
+            # Delete the zip once it is fully imported.
+            git rm -q -f --ignore-unmatch -- "$z"
+            rm -f -- "$z"
+            rm -rf "$tmp"
+          done
+
+      - name: Commit and push
+        id: commit
+        if: steps.unpack.outputs.found == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "zip-import-bot"
+          git config user.email "zip-import-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore: import files from zip [skip ci]"
+            git pull --rebase origin main || true
+            git push origin HEAD:main
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Import finished"
+              echo "Changed files:"
+              git show --stat --oneline --format= HEAD | tail -n 25
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Optional: start the Android build right after a successful import.
+      - name: Start Android build (if the workflow exists)
+        if: steps.commit.outputs.committed == 'true' && hashFiles('.github/workflows/android.yml') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run android.yml --ref main -f draft_release=true || echo "Could not start the Android build automatically; start it from the Actions tab."
