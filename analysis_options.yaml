@@ -5,6 +5,9 @@ analyzer:
     # Material/Cupertino decoupling (Flutter 3.47+): old imports still work.
     # Migration is tracked in HANDOVER.md.
     deprecated_member_use: ignore
+  exclude:
+    - build/**
+    - android/**
 
 linter:
   rules:
