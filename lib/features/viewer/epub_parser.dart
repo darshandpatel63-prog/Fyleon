@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:html/parser.dart' as html_parser;
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
+import '../../core/utils/archive_utils.dart';
 
 class EpubChapter {
   const EpubChapter({required this.title, required this.html, required this.path});
@@ -50,7 +51,7 @@ EpubData parseEpub(String path) {
   String? readText(String name) {
     final f = files[name];
     if (f == null) return null;
-    return utf8.decode(f.content as List<int>, allowMalformed: true);
+    return utf8.decode(archiveFileBytes(f), allowMalformed: true);
   }
 
   final containerXml = readText('META-INF/container.xml');
@@ -146,7 +147,7 @@ EpubData parseEpub(String path) {
   var imageBytes = 0;
   for (final e in files.entries) {
     if (!imageExt.contains(p.posix.extension(e.key).toLowerCase())) continue;
-    final c = e.value.content as List<int>;
+    final c = archiveFileBytes(e.value);
     if (c.length > 6 * 1024 * 1024 || imageBytes + c.length > 80 * 1024 * 1024) continue;
     imageBytes += c.length;
     images[e.key] = c is Uint8List ? c : Uint8List.fromList(c);

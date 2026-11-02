@@ -1,6 +1,6 @@
 # HANDOVER (read this first in every new chat)
 
-Last updated: 2026-11-01, end of session 1.
+Last updated: 2026-11-02, end of session 2 (first CI fixes).
 
 ## Rules for the next session
 1. Read this file, then ROADMAP.md. Continue from "Next steps". Do NOT restart or re-plan.
@@ -28,10 +28,21 @@ Last updated: 2026-11-01, end of session 1.
 **Tested for real in chat:** icon generation, `tool/patch_android.py` (on a fake android project), YAML syntax.
 **Not tested:** everything Dart/Flutter. Expect a few compile errors on the first CI run.
 
+## Session 2 log (first CI runs)
+- Run #4: all steps OK up to "Build APK". Analyze + tests passed. The only compile errors came from
+  `pdfrx_engine 0.4.1` (Dart 3.13 rejects it). FIX: `pdfrx >=2.6.5` (needs Flutter 3.47 / Dart 3.13). No error was
+  reported in our own Dart code, which is a good sign.
+- Run #5: duplicate queued run tried to commit `android/` again -> push rejected. FIX in android.yml: sync with
+  branch tip first + push retry.
+- `archive` constraint widened to `<5.0.0`; code uses `archiveFileBytes()` (works with archive 3.x and 4.x).
+- Possible next failure: `flutter pub get` conflict message (if some package needs different versions). Send the log.
+- `.github/workflows/*` from a ZIP is only imported by import-zip.yml if repo secret `PUSH_TOKEN` exists;
+  otherwise edit android.yml on github.com by hand.
+
 ## Next steps (in order)
 1. Owner creates the GitHub repo, uploads this ZIP's content, runs workflow "Android Build".
-2. If the build fails: owner sends the failing step's log; fix and re-zip. (Most likely: API changes in
-   file_picker 12/13, pdfrx 2.x, google_mobile_ads 9.x, or a typo.)
+2. If the build fails: owner sends the failing step's log; fix and re-zip. (Possible: pub version conflict,
+   plugin/Gradle (AGP 9) errors, API changes in file_picker 12/13 or google_mobile_ads 9.x.)
 3. Install the APK on a phone; test each viewer with real files; write the bug list below.
 4. Owner decision pending: enable all-files access (`allFilesAccess: true`)? Needs Play Console declaration
    and strict review. Default stays OFF (picker only).

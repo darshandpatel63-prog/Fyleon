@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
+import '../../core/utils/archive_utils.dart';
 
 class DocPara {
   const DocPara(this.text, this.level);
@@ -54,7 +55,7 @@ OfficeResult parseOffice(String path) {
   String? read(String name) {
     final f = files[name];
     if (f == null) return null;
-    return utf8.decode(f.content as List<int>, allowMalformed: true);
+    return utf8.decode(archiveFileBytes(f), allowMalformed: true);
   }
 
   final ext = p.extension(path).toLowerCase();
