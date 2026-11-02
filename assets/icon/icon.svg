@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="0.55" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- Source art for the Fyleon icon (glyph approx., scaled 1.2x in the PNG build). -->
+  <g transform="translate(512 512) scale(1.2) translate(-512 -512)" fill="#fff">
+    <rect x="330" y="270" width="105" height="490" rx="30"/>
+    <rect x="330" y="480" width="285" height="95" rx="30"/>
+    <path d="M360 270H615L700 355V345A30 30 0 0 1 670 375H330V300A30 30 0 0 1 360 270Z"/>
+    <path d="M615 270L700 355H615Z" fill="#93DCFF"/>
+    <path d="M668 604L685 651L732 668L685 685L668 732L651 685L604 668L651 651Z"/>
+  </g>
+</svg>
