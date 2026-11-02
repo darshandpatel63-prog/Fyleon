@@ -44,6 +44,16 @@ Last updated: 2026-11-02, end of session 2 (first CI fixes).
 - `.github/workflows/*` from a ZIP is only imported by import-zip.yml if repo secret `PUSH_TOKEN` exists;
   otherwise edit android.yml on github.com by hand.
 
+## Session 3: app crashes at launch (APK b13)
+- Build is green (APK+AAB). On the owner's phone the app closes instantly: recording shows the launcher
+  open animation, then it collapses. Window never appears -> native/process-start crash, no Dart UI.
+- Checked in the APK: AdMob APPLICATION_ID present (test id), arm64 libs present and 16KB aligned, assets present.
+- No device log available. Added `.github/workflows/smoke-test.yml` + `tool/smoke_test.sh`: builds an x86_64 release APK,
+  runs it in an emulator, uploads logcat + screenshots (artifact `smoke-output`, also in the job summary).
+  The workflow file must be created by hand on github.com (or PUSH_TOKEN import).
+- main.dart now has runZonedGuarded + a visible StartupErrorApp (so Dart-level startup errors are shown, not hidden).
+- NEXT: read `smoke-output/summary.txt` / `logcat-full.txt` and fix the real cause.
+
 ## Next steps (in order)
 1. Owner creates the GitHub repo, uploads this ZIP's content, runs workflow "Android Build".
 2. If the build fails: owner sends the failing step's log; fix and re-zip. (Possible: pub version conflict,
