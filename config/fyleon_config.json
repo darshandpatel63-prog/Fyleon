@@ -1,6 +1,5 @@
 {
   "_readme": "Fill this file yourself. Do NOT put API keys or secrets here. AdMob IDs are not secrets but keep useTestAds=true until release.",
-
   "admob": {
     "useTestAds": true,
     "android": {
@@ -16,12 +15,14 @@
       "rewarded": ""
     }
   },
-
   "features": {
     "allFilesAccess": false
   },
-
   "remoteConfig": {
     "githubJsonUrl": ""
-  }
+  },
+  "build": {
+    "shrinkCode": false
+  },
+  "_build_note": "shrinkCode=false turns R8 off (safe). Set true only after the Android Smoke Test passes with the keep rules."
 }

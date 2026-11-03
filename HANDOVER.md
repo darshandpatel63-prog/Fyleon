@@ -52,7 +52,17 @@ Last updated: 2026-11-02, end of session 2 (first CI fixes).
   runs it in an emulator, uploads logcat + screenshots (artifact `smoke-output`, also in the job summary).
   The workflow file must be created by hand on github.com (or PUSH_TOKEN import).
 - main.dart now has runZonedGuarded + a visible StartupErrorApp (so Dart-level startup errors are shown, not hidden).
-- NEXT: read `smoke-output/summary.txt` / `logcat-full.txt` and fix the real cause.
+- SMOKE TEST RESULT (emulator, Android 14): REPRODUCED the crash. Cause:
+  `java.lang.RuntimeException: Unable to get provider androidx.startup.InitializationProvider ...
+   Failed to create an instance of androidx.work.impl.WorkDatabase` = R8 removed the reflective constructor of
+  Room's WorkDatabase_Impl (WorkManager is pulled in by the AdMob SDK). The process dies before any UI.
+- FIX (session 3): `tool/patch_android.py` now (a) writes `android/app/proguard-rules.pro` with keep rules and references
+  it in the release build type, (b) writes `shrink=false` to `android/gradle.properties` (R8 off, same as `--no-shrink`)
+  because `config/fyleon_config.json` has `"build": {"shrinkCode": false}`. APK gets a bit bigger; that is fine for now.
+- TODO later: set `shrinkCode` to true, run the Android Smoke Test; only keep it on if the app still starts.
+- NEXT: owner uploads ZIP, runs "Android Build" (and optionally "Android Smoke Test"), installs the new APK.
+- WARNING: importing the ZIP overwrites `config/fyleon_config.json`. Once the owner has filled real AdMob ids there,
+  do NOT ship that file in a ZIP again (or merge by hand).
 
 ## Next steps (in order)
 1. Owner creates the GitHub repo, uploads this ZIP's content, runs workflow "Android Build".

@@ -13,6 +13,10 @@ Then add GitHub Secrets (Settings > Secrets and variables > Actions):
 - `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (fyleon), `ANDROID_KEY_PASSWORD`
 Never commit the keystore. Never paste it in chat.
 
+## B2. R8 / code shrinking
+Currently OFF (`build.shrinkCode=false` in config) because R8 broke WorkManager at startup. Before the store release:
+set it to true, run "Android Smoke Test"; if the app starts, keep it (smaller, obfuscated app). If not, leave it off.
+
 ## C. Before Play Store
 - [ ] Real AdMob ids in `config/fyleon_config.json`; `useTestAds: false` (store build only)
 - [ ] AdMob consent message (GDPR) created; app-ads.txt if you have a website
