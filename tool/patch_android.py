@@ -123,12 +123,14 @@ def patch_gradle():
     # keep rules file must be referenced from the release build type
     if "proguard-rules.pro" not in text:
         if gradle.suffix == ".kts":
-            line = '\n            proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")'
+            line = '\n            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")'
         else:
-            line = "\n            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'"
+            line = "\n            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'"
         text, n = re.subn(r"(buildTypes\s*\{\s*release\s*\{)", lambda m: m.group(1) + line, text, count=1)
         if n == 0:
             print("WARNING: could not find buildTypes { release { in", gradle.name)
+    # AGP 9 rejects the old default file ("includes -dontoptimize") -> use the optimize variant.
+    text = text.replace("proguard-android.txt", "proguard-android-optimize.txt")
     gradle.write_text(text, "utf-8")
     (ROOT / "android/app/proguard-rules.pro").write_text(PROGUARD_RULES, "utf-8")
     print("gradle ok:", gradle.name, "applicationId", WANTED_ID, "+ proguard-rules.pro")

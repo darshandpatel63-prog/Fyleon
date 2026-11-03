@@ -60,6 +60,12 @@ Last updated: 2026-11-02, end of session 2 (first CI fixes).
   it in the release build type, (b) writes `shrink=false` to `android/gradle.properties` (R8 off, same as `--no-shrink`)
   because `config/fyleon_config.json` has `"build": {"shrinkCode": false}`. APK gets a bit bigger; that is fine for now.
 - TODO later: set `shrinkCode` to true, run the Android Smoke Test; only keep it on if the app still starts.
+- Run #19 FAILED at Gradle configuration: `getDefaultProguardFile('proguard-android.txt') is no longer supported
+  (AGP 9)`. The line injected by patch_android.py was committed into android/app/build.gradle.kts. FIX: the script now
+  uses `proguard-android-optimize.txt` and also repairs the old line already committed. Tested on the owner's real
+  android/ folder (Fyleon-main.zip).
+- Environment note: the template has `android.newDsl=false` and `android.builtInKotlin=false` (AGP 9 migration flags).
+- analysis_options.yaml in the owner's repo has an extra `exclude: build/**, android/**` - kept in the ZIP.
 - NEXT: owner uploads ZIP, runs "Android Build" (and optionally "Android Smoke Test"), installs the new APK.
 - WARNING: importing the ZIP overwrites `config/fyleon_config.json`. Once the owner has filled real AdMob ids there,
   do NOT ship that file in a ZIP again (or merge by hand).
