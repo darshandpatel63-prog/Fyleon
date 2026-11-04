@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:highlight/highlight.dart' show highlight, Node;
 
 /// TextEditingController that colors the text while you type (syntax highlight).

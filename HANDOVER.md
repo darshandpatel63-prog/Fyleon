@@ -90,6 +90,14 @@ Added this session (all untested, first CI run may show compile errors):
 - Honest limits: Flutter/Android/Java apps cannot be RUN inside Fyleon. Web projects can be previewed; app projects can
   be written and built with GitHub Actions.
 
+## Session 5
+- Build #26 failed: `TextInputFormatter` not found in editor/highlighting_controller.dart (missing
+  `import 'package:flutter/services.dart'`). FIXED (also added to file_manager_actions.dart).
+- Owner: "not every PDF opens". Cause unknown (no error text was shown). `pdf_viewer.dart` now opens the document
+  itself (`PdfDocument.openFile`) with a password prompt and shows a clear error + technical details (selectable) +
+  "Try again". NEXT: owner sends a screenshot of the error for a PDF that fails -> fix the real cause.
+  Suspects: password-protected PDFs, damaged PDFs, very large PDFs, PDFium limits.
+
 ## Next steps (in order)
 0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
    PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,
