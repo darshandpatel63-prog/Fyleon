@@ -136,6 +136,34 @@ def patch_gradle():
     print("gradle ok:", gradle.name, "applicationId", WANTED_ID, "+ proguard-rules.pro")
 
 
+NSC_XML = """<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Fyleon's web preview serves your project files from a tiny server that lives
+         only on this device (127.0.0.1). Plain HTTP is allowed for these two hosts only. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
+"""
+
+
+def patch_network_security():
+    res = ROOT / "android/app/src/main/res/xml"
+    res.mkdir(parents=True, exist_ok=True)
+    (res / "network_security_config.xml").write_text(NSC_XML, "utf-8")
+    text = MANIFEST.read_text("utf-8")
+    if "android:networkSecurityConfig" not in text:
+        text = re.sub(
+            r"(<application\b)",
+            r'\1\n        android:networkSecurityConfig="@xml/network_security_config"',
+            text,
+            count=1,
+        )
+        MANIFEST.write_text(text, "utf-8")
+    print("network security config ok")
+
+
 def patch_gradle_properties(cfg):
     """build.shrinkCode=false in the config -> android/gradle.properties gets shrink=false
     (same effect as `flutter build --no-shrink`: R8 off). Default: R8 off until the keep rules
@@ -156,3 +184,4 @@ if __name__ == "__main__":
     patch_manifest(_cfg)
     patch_gradle()
     patch_gradle_properties(_cfg)
+    patch_network_security()

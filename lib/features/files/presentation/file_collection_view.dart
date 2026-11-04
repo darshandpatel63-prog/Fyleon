@@ -39,9 +39,7 @@ class FileCollectionView extends ConsumerWidget {
       }
     }
 
-    void hold(FileItem it) {
-      if (!it.isDir) onLongPressFile?.call(it);
-    }
+    void hold(FileItem it) => onLongPressFile?.call(it);
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),

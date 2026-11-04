@@ -9,7 +9,10 @@ import 'package:flutter_highlight/themes/github.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/format.dart';
+import '../../shared/widgets/animations.dart';
+import '../editor/editor_screen.dart';
 import '../files/domain/file_item.dart';
+import '../preview/preview_screen.dart';
 import '../files/domain/file_kind.dart';
 
 class _TextData {
@@ -65,6 +68,21 @@ class _TextViewerScreenState extends State<TextViewerScreen> {
       appBar: AppBar(
         title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
+          IconButton(
+            tooltip: 'Edit',
+            icon: const Icon(Icons.edit_rounded),
+            onPressed: () => Navigator.of(context).pushReplacement(
+              fadeSlideRoute(EditorScreen(path: item.path)),
+            ),
+          ),
+          if (const {'html', 'htm', 'svg', 'md', 'markdown'}.contains(item.ext))
+            IconButton(
+              tooltip: 'Preview',
+              icon: const Icon(Icons.play_circle_outline_rounded),
+              onPressed: () => Navigator.of(context).push(
+                fadeSlideRoute(PreviewScreen(path: item.path)),
+              ),
+            ),
           IconButton(
             tooltip: 'Smaller text',
             icon: const Icon(Icons.text_decrease_rounded),

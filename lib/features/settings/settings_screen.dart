@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../shared/widgets/animations.dart';
+import '../files/application/browse_controller.dart';
 import '../files/application/files_providers.dart';
 import 'themes_screen.dart';
 
@@ -33,6 +34,19 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => Navigator.of(context).push(fadeSlideRoute(const ThemesScreen())),
           ),
           _section(context, 'Files'),
+          ListTile(
+            leading: Icon(Icons.folder_shared_rounded, color: scheme.primary),
+            title: const Text('All files access'),
+            subtitle: const Text('Optional. Browse every folder, create files, write code.'),
+            onTap: () async {
+              final ok = await requestAllFilesAccess();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(ok ? 'Access allowed' : 'Access not allowed. You can allow it in Android settings.')),
+                );
+              }
+            },
+          ),
           ListTile(
             leading: Icon(Icons.history_toggle_off_rounded, color: scheme.primary),
             title: const Text('Clear recent files'),

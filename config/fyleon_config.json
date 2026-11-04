@@ -16,7 +16,7 @@
     }
   },
   "features": {
-    "allFilesAccess": false
+    "allFilesAccess": true
   },
   "remoteConfig": {
     "githubJsonUrl": ""

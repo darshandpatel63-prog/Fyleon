@@ -70,8 +70,33 @@ Last updated: 2026-11-02, end of session 2 (first CI fixes).
 - WARNING: importing the ZIP overwrites `config/fyleon_config.json`. Once the owner has filled real AdMob ids there,
   do NOT ship that file in a ZIP again (or merge by hand).
 
+## Session 4: new product direction + features (code written, NOT compiled yet)
+Owner confirmed: the app starts now (APK b19+). New vision: **Fyleon = a full file manager + creator + code workspace**
+(like GitHub/VS Code on the phone) that also opens every format. See ROADMAP.md "Product vision v2".
+Added this session (all untested, first CI run may show compile errors):
+- `allFilesAccess` default ON (optional permission asked in the Files tab; "Not now" falls back to the picker).
+- File manager: new folder / new file (templates) / new web project, rename, copy, cut/move, paste, delete, details
+  (`files/data/file_ops.dart`, `files/presentation/file_manager_actions.dart`). Long-press any item.
+- Code editor (`features/editor/`): syntax colors while typing (highlight pkg), line numbers, undo/redo, save,
+  symbol bar, auto indent, Edit button in the text viewer, unsaved-changes prompt. Limit 1.5 MB.
+- Web preview (`features/preview/`): local server on 127.0.0.1 + WebView; HTML/SVG/Markdown; Phone/Tablet/Desktop
+  views; works with relative CSS/JS/images and shows UNSAVED editor text. Needs `network_security_config` (patched by
+  tool/patch_android.py). Android/iOS only for now (no desktop WebView yet).
+- EPUB reader rewritten: real pages that fit the screen (no scrolling), page-turn 3D flip animation, drag or tap
+  left/right edges, page slider, TOC, text size/spacing/themes. Text selection is not available in this mode yet.
+- PowerPoint: new renderer draws slides (positions, fills, borders, text sizes/colors, bullets, pictures, tables,
+  master/layout decorations). Approximate: charts, SmartArt, animations, gradients/pictures as backgrounds are missing.
+- New deps: webview_flutter, markdown, highlight.
+- Honest limits: Flutter/Android/Java apps cannot be RUN inside Fyleon. Web projects can be previewed; app projects can
+  be written and built with GitHub Actions.
+
 ## Next steps (in order)
-1. Owner creates the GitHub repo, uploads this ZIP's content, runs workflow "Android Build".
+0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
+   PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,
+   web preview (Phone/Tablet/Desktop), EPUB page flip, PPTX rendering. Report what looks wrong with screenshots/video.
+0b. Planned next features: project/tabs workspace, search & replace, console in preview, create PDF/DOCX/XLSX/PPTX/EPUB,
+    Open With Fyleon, text selection in EPUB reader, Markdown split view, ZIP extract/create.
+1. (done) Owner creates the GitHub repo, uploads this ZIP's content, runs workflow "Android Build".
 2. If the build fails: owner sends the failing step's log; fix and re-zip. (Possible: pub version conflict,
    plugin/Gradle (AGP 9) errors, API changes in file_picker 12/13 or google_mobile_ads 9.x.)
 3. Install the APK on a phone; test each viewer with real files; write the bug list below.

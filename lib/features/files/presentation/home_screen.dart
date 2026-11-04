@@ -10,6 +10,7 @@ import '../application/files_providers.dart';
 import '../domain/files_logic.dart';
 import 'browse_view.dart';
 import 'file_actions.dart';
+import 'file_manager_actions.dart';
 import 'recent_view.dart';
 import 'sort_filter_widgets.dart';
 
@@ -122,13 +123,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SettingsScreen(),
           ],
         ),
-        floatingActionButton: (_tab == 0 || (hasBrowse && _tab == 1 && browsePath == null))
+        floatingActionButton: _tab == 0
             ? FloatingActionButton.extended(
                 onPressed: () => pickAndOpenFile(context, ref),
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Open file'),
               )
-            : null,
+            : (hasBrowse && _tab == 1 && browsePath != null)
+                ? FloatingActionButton.extended(
+                    onPressed: () => showCreateSheet(context, ref, browsePath),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('New'),
+                  )
+                : null,
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -143,13 +150,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const NavigationDestination(
                   icon: Icon(Icons.history_rounded),
                   selectedIcon: Icon(Icons.history_toggle_off_rounded),
-                  label: 'Files',
+                  label: 'Recent',
                 ),
                 if (hasBrowse)
                   const NavigationDestination(
                     icon: Icon(Icons.folder_outlined),
                     selectedIcon: Icon(Icons.folder_rounded),
-                    label: 'Browse',
+                    label: 'Files',
                   ),
                 const NavigationDestination(
                   icon: Icon(Icons.settings_outlined),

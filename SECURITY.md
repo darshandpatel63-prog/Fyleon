@@ -9,6 +9,17 @@
 - Parsing of untrusted files (EPUB/Office/ZIP) runs in isolates; size limits protect memory (see AppConstants).
 - ZIP listing never extracts files (no zip-slip risk yet). When extraction is added: sanitize paths, limit size/ratio.
 
+## Local preview server
+`features/preview/local_server.dart` binds to 127.0.0.1 only (not reachable from the network), serves only files inside the
+project folder (path traversal blocked), random port, stopped when the preview closes. Android allows plain HTTP for
+127.0.0.1/localhost only (network_security_config.xml, written by tool/patch_android.py). Preview pages run JavaScript:
+only open projects you trust.
+
+## All files access
+Optional runtime permission (Settings > Special app access). The manifest permission is controlled by
+`features.allFilesAccess` in config/fyleon_config.json. Play Store needs the "All files access" declaration; if it is
+rejected, set the flag to false and Fyleon falls back to the file picker.
+
 ## Permissions (Android)
 INTERNET, ACCESS_NETWORK_STATE, AD_ID (ads). Optional (only if `allFilesAccess=true`): MANAGE_EXTERNAL_STORAGE,
 READ_EXTERNAL_STORAGE (<= Android 12). Play restricts all-files access; a declaration form is required.

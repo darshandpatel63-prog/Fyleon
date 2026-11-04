@@ -7,6 +7,7 @@ import 'epub_viewer.dart';
 import 'image_viewer.dart';
 import 'office_viewer.dart';
 import 'pdf_viewer.dart';
+import 'pptx_viewer.dart';
 import 'text_viewer.dart';
 import 'unsupported_viewer.dart';
 
@@ -42,6 +43,7 @@ class ViewerScreen extends StatelessWidget {
                 'DOCX, XLSX and PPTX open with a basic preview.',
           );
         }
+        if (item.kind == FileKind.powerpoint) return PptxViewerScreen(item: item);
         return OfficeViewerScreen(item: item);
       case FileKind.audio:
       case FileKind.video:

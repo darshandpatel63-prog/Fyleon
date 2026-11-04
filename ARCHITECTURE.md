@@ -12,7 +12,12 @@
           domain/                    FileKind, FileItem, sort/filter logic (pure Dart, unit tested)
           application/               Riverpod providers (view mode, sort, filter, recents, browse)
           presentation/              home, recent view, browse view, collection view (list/grid)
+        editor/                      code editor (highlighting_controller.dart, editor_screen.dart)
+        preview/                     local_server.dart (127.0.0.1) + preview_screen.dart (WebView, device modes)
+        files/data/file_ops.dart     create/rename/copy/move/delete + templates (pure dart:io, unit tested)
         viewer/                      one file per viewer + viewer_screen.dart (router)
+                                     epub_* (parser, layout, paginator, flip_book, viewer), pptx_* (parser, viewer),
+                                     office_* (docx/xlsx basic), archive, text, image, pdf
         settings/                    settings, themes
     config/fyleon_config.json        owner-filled config (AdMob ids, flags, remote url)
     tool/                            make_icons.py, patch_android.py

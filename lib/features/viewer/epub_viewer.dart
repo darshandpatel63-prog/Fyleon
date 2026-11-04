@@ -4,13 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../files/domain/file_item.dart';
+import 'epub_layout.dart';
+import 'epub_paginator.dart';
 import 'epub_parser.dart';
-import 'epub_renderer.dart';
+import 'flip_book.dart';
 
 enum _ReadTheme { paper, sepia, night }
 
-/// Basic EPUB reader: one chapter per page, table of contents, font size,
-/// line spacing and reading themes. (Kindle-level features come in Phase 3.)
+/// EPUB reader: the book is split into real pages that fit the screen
+/// (nothing to scroll), with a page-turn animation.
 class EpubViewerScreen extends StatefulWidget {
   const EpubViewerScreen({super.key, required this.item});
 
@@ -21,19 +23,24 @@ class EpubViewerScreen extends StatefulWidget {
 }
 
 class _EpubViewerScreenState extends State<EpubViewerScreen> {
+  static const _hPad = 26.0;
+  static const _topPad = 20.0;
+  static const _bottomPad = 12.0;
+
   late final Future<EpubData> _future = compute(parseEpub, widget.item.path);
-  final _controller = PageController();
+  final _flip = FlipBookController();
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  Pagination? _pag;
+  String? _layoutKey;
+  bool _paginating = false;
+  double _progress = 0;
   int _page = 0;
+  int _token = 0;
+
   double _fontSize = 18;
   double _lineHeight = 1.6;
   _ReadTheme _theme = _ReadTheme.paper;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   (Color, Color) get _colors {
     switch (_theme) {
@@ -46,16 +53,58 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     }
   }
 
-  void _go(int page, int total) {
-    final target = page.clamp(0, total - 1);
-    _controller.animateToPage(
-      target,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
+  @override
+  void dispose() {
+    _token++; // cancels a running pagination
+    super.dispose();
+  }
+
+  Future<void> _repaginate(Size size, EpubData data) async {
+    final token = ++_token;
+    final old = _pag;
+    int? chapter;
+    double anchor = 0;
+    if (old != null && old.pages.isNotEmpty) {
+      final cur = old.pages[_page.clamp(0, old.pages.length - 1)];
+      chapter = cur.chapter;
+      final first = old.chapterFirstPage[chapter];
+      final count = math.max(1, old.chapterEnd(chapter) - first);
+      anchor = (_page - first) / count;
+    }
+    if (mounted) {
+      setState(() {
+        _paginating = true;
+        _progress = 0;
+      });
+    }
+    final style = ReaderStyle(fontSize: _fontSize, lineHeight: _lineHeight, color: _colors.$2);
+    final result = await paginateBook(
+      data: data,
+      width: size.width,
+      height: size.height,
+      style: style,
+      cancelled: () => token != _token || !mounted,
+      onProgress: (v) {
+        if (mounted && token == _token) setState(() => _progress = v);
+      },
     );
+    if (!mounted || result == null || token != _token) return;
+    var newPage = 0;
+    if (chapter != null && chapter < result.chapterFirstPage.length) {
+      final first = result.chapterFirstPage[chapter];
+      final count = math.max(1, result.chapterEnd(chapter) - first);
+      newPage = (first + (anchor * count).round()).clamp(0, result.pages.length - 1);
+    }
+    setState(() {
+      _pag = result;
+      _page = newPage;
+      _paginating = false;
+    });
   }
 
   void _openSettings() {
+    var fs = _fontSize;
+    var lh = _lineHeight;
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -68,27 +117,23 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
             children: [
               const Text('Reading settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 16),
-              Text('Text size: ${_fontSize.round()}'),
+              Text('Text size: ${fs.round()}'),
               Slider(
                 min: 12,
                 max: 32,
                 divisions: 20,
-                value: _fontSize,
-                onChanged: (v) {
-                  setState(() => _fontSize = v);
-                  setSheet(() {});
-                },
+                value: fs,
+                onChanged: (v) => setSheet(() => fs = v),
+                onChangeEnd: (v) => setState(() => _fontSize = v),
               ),
-              Text('Line spacing: ${_lineHeight.toStringAsFixed(1)}'),
+              Text('Line spacing: ${lh.toStringAsFixed(1)}'),
               Slider(
                 min: 1.2,
                 max: 2.2,
                 divisions: 10,
-                value: _lineHeight,
-                onChanged: (v) {
-                  setState(() => _lineHeight = v);
-                  setSheet(() {});
-                },
+                value: lh,
+                onChanged: (v) => setSheet(() => lh = v),
+                onChangeEnd: (v) => setState(() => _lineHeight = v),
               ),
               const SizedBox(height: 8),
               SegmentedButton<_ReadTheme>(
@@ -144,9 +189,9 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
               ],
             ],
           ),
-          endDrawer: data == null ? null : _tocDrawer(data),
+          endDrawer: (data == null || _pag == null) ? null : _tocDrawer(data, _pag!),
           body: _body(snap, bg, fg),
-          bottomNavigationBar: data == null ? null : _pager(data, fg),
+          bottomNavigationBar: (data == null || _pag == null) ? null : _bottomBar(data, _pag!, fg),
         );
       },
     );
@@ -170,44 +215,88 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
       );
     }
     final data = snap.data!;
-    return PageView.builder(
-      controller: _controller,
-      itemCount: data.chapters.length,
-      onPageChanged: (i) => setState(() => _page = i),
-      itemBuilder: (context, i) => EpubChapterView(
-        key: ValueKey('ch$i-${_fontSize.round()}-${_lineHeight.toStringAsFixed(1)}-${_theme.name}'),
-        chapter: data.chapters[i],
-        images: data.images,
-        fontSize: _fontSize,
-        lineHeight: _lineHeight,
-        textColor: fg,
-      ),
+    return LayoutBuilder(
+      builder: (context, box) {
+        final w = math.max(100.0, box.maxWidth - _hPad * 2);
+        final h = math.max(100.0, box.maxHeight - _topPad - _bottomPad);
+        final key = '${w.round()}x${h.round()}-$_fontSize-$_lineHeight';
+        if (key != _layoutKey) {
+          _layoutKey = key;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _repaginate(Size(w, h), data);
+          });
+        }
+        final pag = _pag;
+        if (pag == null) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: fg, value: _progress > 0 ? _progress : null),
+                const SizedBox(height: 14),
+                Text('Preparing pages...', style: TextStyle(color: fg.withValues(alpha: 0.7))),
+              ],
+            ),
+          );
+        }
+        final style = ReaderStyle(fontSize: _fontSize, lineHeight: _lineHeight, color: fg);
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: FlipBook(
+                key: ObjectKey(pag),
+                controller: _flip,
+                pageCount: pag.pages.length,
+                initialPage: _page,
+                pageColor: bg,
+                onPageChanged: (i) => setState(() => _page = i),
+                pageBuilder: (context, i) => Padding(
+                  padding: const EdgeInsets.fromLTRB(_hPad, _topPad, _hPad, _bottomPad),
+                  child: _PageContent(page: pag.pages[i], style: style),
+                ),
+              ),
+            ),
+            if (_paginating)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: LinearProgressIndicator(value: _progress > 0 ? _progress : null, minHeight: 3),
+              ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _pager(EpubData data, Color fg) {
-    final total = data.chapters.length;
+  Widget _bottomBar(EpubData data, Pagination pag, Color fg) {
+    final total = pag.pages.length;
+    final page = _page.clamp(0, total - 1);
+    final chapter = data.chapters[pag.pages[page].chapter.clamp(0, data.chapters.length - 1)].title;
     return SafeArea(
-      child: SizedBox(
-        height: 52,
-        child: Row(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            IconButton(
-              color: fg,
-              icon: const Icon(Icons.chevron_left_rounded),
-              onPressed: _page > 0 ? () => _go(_page - 1, total) : null,
-            ),
-            Expanded(
-              child: Text(
-                'Chapter ${math.min(_page + 1, total)} of $total',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: fg.withValues(alpha: 0.7), fontSize: 13),
+            if (total > 1)
+              SizedBox(
+                height: 28,
+                child: Slider(
+                  min: 0,
+                  max: (total - 1).toDouble(),
+                  value: page.toDouble(),
+                  onChanged: (v) {
+                    setState(() => _page = v.round());
+                    _flip.jumpTo(v.round());
+                  },
+                ),
               ),
-            ),
-            IconButton(
-              color: fg,
-              icon: const Icon(Icons.chevron_right_rounded),
-              onPressed: _page < total - 1 ? () => _go(_page + 1, total) : null,
+            Text(
+              '${page + 1} / $total  -  $chapter',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: fg.withValues(alpha: 0.65), fontSize: 12.5),
             ),
           ],
         ),
@@ -215,7 +304,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     );
   }
 
-  Widget _tocDrawer(EpubData data) {
+  Widget _tocDrawer(EpubData data, Pagination pag) {
     return Drawer(
       child: SafeArea(
         child: Column(
@@ -231,27 +320,84 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
               ),
             ),
             if (data.author.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(data.author),
-              ),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text(data.author)),
             const Divider(height: 24),
             Expanded(
               child: ListView.builder(
                 itemCount: data.chapters.length,
-                itemBuilder: (context, i) => ListTile(
-                  selected: i == _page,
-                  title: Text(data.chapters[i].title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _controller.jumpToPage(i);
-                  },
-                ),
+                itemBuilder: (context, i) {
+                  final current = pag.pages[_page.clamp(0, pag.pages.length - 1)].chapter == i;
+                  return ListTile(
+                    selected: current,
+                    title: Text(data.chapters[i].title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      final target = pag.chapterFirstPage[i].clamp(0, pag.pages.length - 1);
+                      setState(() => _page = target);
+                      _flip.jumpTo(target);
+                    },
+                  );
+                },
               ),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Draws one page. Uses the SAME styles/widths as the paginator, so it fits exactly.
+class _PageContent extends StatelessWidget {
+  const _PageContent({required this.page, required this.style});
+
+  final BookPage page;
+  final ReaderStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: SizedBox.expand(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in page.items)
+              Padding(
+                padding: EdgeInsets.only(top: item.topGap),
+                child: _item(item),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _item(PageItem item) {
+    final b = item.block;
+    if (b.kind == BlockKind.image && b.image != null) {
+      return SizedBox(
+        height: item.imageHeight,
+        child: Image.memory(b.image!, fit: BoxFit.contain, errorBuilder: (c, e, s) => const SizedBox.shrink()),
+      );
+    }
+    if (b.kind == BlockKind.rule) {
+      return Divider(height: item.imageHeight, color: style.color.withValues(alpha: 0.3));
+    }
+    final text = Text.rich(
+      spanFor(item.runs, blockStyle(b, style)),
+      textAlign: blockAlign(b),
+      textScaler: TextScaler.noScaling,
+    );
+    if (b.kind == BlockKind.quote) {
+      return Container(
+        padding: const EdgeInsets.only(left: 13),
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: style.color.withValues(alpha: 0.35), width: 3)),
+        ),
+        child: text,
+      );
+    }
+    return text;
   }
 }

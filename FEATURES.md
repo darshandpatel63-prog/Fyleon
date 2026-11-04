@@ -21,6 +21,15 @@ Legend: [x] done in code (untested on device) | [ ] planned
 - [x] Splash, smooth transitions
 - [ ] Browse device folders (needs all-files access decision)
 
+## Added in session 4 (code written, awaiting first device test)
+- [x] Optional all-files access, real file manager: browse every folder, new folder/file/web project, rename, copy, cut/move, paste, delete, details
+- [x] Code editor: syntax colors while typing, line numbers, undo/redo, save, symbol bar, auto indent
+- [x] Web preview (HTML, SVG, Markdown) in Phone / Tablet / Desktop views, relative CSS/JS/images, unsaved text
+- [x] EPUB: real pages that fit the screen, page-turn flip animation, tap/drag, page slider
+- [x] PowerPoint: slide rendering with positions, fills, text, bullets, pictures, tables
+- [ ] Next: multi-file project view with tabs, search/replace, console panel in preview, Markdown/HTML split view,
+      create PDF/DOCX/XLSX/PPTX/EPUB files, Open With Fyleon, text selection in the EPUB reader
+
 ## Benchmarks to beat (later phases)
 - EPUB: Kindle - highlights, notes, bookmarks, dictionary/translate, X-ray style info, fonts, themes, brightness, reading progress/stats, cloud-free sync through the user's Drive.
 - Office: Microsoft Word/Excel/PowerPoint - full layout, styles, tables, charts, tracked changes, formulas, slide show; plus extras (AI assist via AI Vault).

@@ -135,3 +135,19 @@ final openedMapProvider = Provider<Map<String, DateTime>>((ref) {
   final recents = ref.watch(recentsProvider);
   return {for (final r in recents) r.item.path: r.openedAt};
 });
+
+// ---------- file manager clipboard (copy / cut / paste) ----------
+class FileClipboard {
+  const FileClipboard(this.paths, {required this.cut});
+  final List<String> paths;
+  final bool cut;
+}
+
+class ClipboardNotifier extends Notifier<FileClipboard?> {
+  @override
+  FileClipboard? build() => null;
+  void set(FileClipboard? c) => state = c;
+}
+
+final clipboardProvider =
+    NotifierProvider<ClipboardNotifier, FileClipboard?>(ClipboardNotifier.new);

@@ -9,9 +9,10 @@ import '../domain/file_item.dart';
 import '../domain/files_logic.dart';
 import 'file_actions.dart';
 import 'file_collection_view.dart';
+import 'file_manager_actions.dart';
 import 'sort_filter_widgets.dart';
 
-/// "Browse" tab (only when features.allFilesAccess = true in the config).
+/// "Files" tab: a real file manager (needs the optional "all files access").
 class BrowseView extends ConsumerStatefulWidget {
   const BrowseView({super.key});
 
@@ -54,19 +55,52 @@ class _BrowseViewState extends ConsumerState<BrowseView> with WidgetsBindingObse
   Widget build(BuildContext context) {
     final access = _access;
     if (access == null) return const Center(child: CircularProgressIndicator());
-    if (!access) {
-      return EmptyState(
-        icon: Icons.lock_open_rounded,
-        title: 'Allow access to your files',
-        message: 'Fyleon needs permission to show the files on your device. '
-            'Your files never leave your phone.',
-        actionLabel: 'Allow access',
-        onAction: _request,
-      );
-    }
+    if (!access) return _permissionCard(context);
     final path = ref.watch(browsePathProvider);
     if (path == null) return _roots(context);
     return _folder(context, path);
+  }
+
+  Widget _permissionCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(color: scheme.primaryContainer.withValues(alpha: 0.6), shape: BoxShape.circle),
+              child: Icon(Icons.folder_open_rounded, size: 46, color: scheme.primary),
+            ),
+            const SizedBox(height: 20),
+            Text('See and manage all your files',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+            Text(
+              'Allow "all files access" to browse every folder, create files and folders, '
+              'and write code. This is optional. Your files never leave your phone.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 22),
+            FilledButton.icon(
+              onPressed: _request,
+              icon: const Icon(Icons.lock_open_rounded),
+              label: const Text('Allow access'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => pickAndOpenFile(context, ref),
+              child: const Text('Not now - pick one file instead'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _roots(BuildContext context) {
@@ -107,6 +141,7 @@ class _BrowseViewState extends ConsumerState<BrowseView> with WidgetsBindingObse
     final filter = ref.watch(kindFilterProvider);
     final query = ref.watch(searchQueryProvider);
     final opened = ref.watch(openedMapProvider);
+    final clip = ref.watch(clipboardProvider);
     final scheme = Theme.of(context).colorScheme;
 
     return Column(
@@ -119,15 +154,19 @@ class _BrowseViewState extends ConsumerState<BrowseView> with WidgetsBindingObse
           ),
           title: Text(p.basename(path), style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(path, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurfaceVariant)),
+          trailing: clip == null
+              ? null
+              : FilledButton.tonalIcon(
+                  onPressed: () => pasteInto(context, ref, path),
+                  icon: const Icon(Icons.content_paste_rounded, size: 18),
+                  label: Text(clip.cut ? 'Move here' : 'Paste'),
+                ),
         ),
         const FilterChipsRow(),
         Expanded(
           child: listing.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => const EmptyState(
-              icon: Icons.error_outline_rounded,
-              title: 'Cannot read this folder',
-            ),
+            error: (e, s) => const EmptyState(icon: Icons.error_outline_rounded, title: 'Cannot read this folder'),
             data: (items) {
               final folders = items.where((i) => i.isDir).toList()
                 ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -142,15 +181,22 @@ class _BrowseViewState extends ConsumerState<BrowseView> with WidgetsBindingObse
                   ? folders
                   : folders.where((f) => f.name.toLowerCase().contains(query.toLowerCase())).toList();
               if (shownFolders.isEmpty && files.isEmpty) {
-                return const EmptyState(icon: Icons.folder_open_rounded, title: 'Nothing here');
+                return EmptyState(
+                  icon: Icons.folder_open_rounded,
+                  title: 'This folder is empty',
+                  message: 'Tap + to create a file, folder or web project.',
+                  actionLabel: 'Create',
+                  onAction: () => showCreateSheet(context, ref, path),
+                );
               }
               return RefreshIndicator(
                 onRefresh: () async => ref.invalidate(directoryListingProvider(path)),
                 child: FileCollectionView(
                   folders: shownFolders,
                   files: files,
-                  onOpenFile: (FileItem f) => openFile(context, ref, f),
+                  onOpenFile: (FileItem f) => openFromBrowse(context, ref, f),
                   onOpenFolder: (FileItem d) => ref.read(browsePathProvider.notifier).open(d.path),
+                  onLongPressFile: (FileItem f) => showItemMenu(context, ref, f, path),
                 ),
               );
             },
