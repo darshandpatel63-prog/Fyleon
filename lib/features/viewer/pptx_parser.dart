@@ -150,7 +150,7 @@ int _applyLum(int c, double mod, double off) {
   return _rgb((rr * 255).round(), (gg * 255).round(), (bb * 255).round());
 }
 
-/// Reads <a:solidFill>-like parent: finds srgbClr / schemeClr / sysClr child.
+/// Reads a solidFill-like parent element: finds the srgbClr, schemeClr or sysClr child.
 int? _colorOf(XmlElement? parent, _Theme theme, {int? phColor}) {
   if (parent == null) return null;
   XmlElement? c;

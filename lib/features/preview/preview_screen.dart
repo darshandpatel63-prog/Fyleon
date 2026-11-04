@@ -69,7 +69,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
   PreviewDevice _device = PreviewDevice.phone;
   String? _error;
   int _progress = 0;
-  String _entry = '';
 
   @override
   void initState() {
@@ -104,7 +103,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
       }
       await server.start();
       _server = server;
-      _entry = entry;
 
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)

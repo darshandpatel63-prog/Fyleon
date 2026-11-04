@@ -98,6 +98,10 @@ Added this session (all untested, first CI run may show compile errors):
   "Try again". NEXT: owner sends a screenshot of the error for a PDF that fails -> fix the real cause.
   Suspects: password-protected PDFs, damaged PDFs, very large PDFs, PDFium limits.
 
+- Build #29: `flutter analyze` showed ONE error: `PdfViewer.document` does not exist in pdfrx 2.6 ->
+  now `PdfViewer(PdfDocumentRefDirect(doc))`. All other new code (editor, preview, EPUB pagination, PPTX, file manager)
+  passed the analyzer. Also removed the unused/unnecessary imports and an unused field.
+
 ## Next steps (in order)
 0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
    PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,

@@ -34,7 +34,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   @override
   void dispose() {
     final d = _doc;
-    if (d != null) unawaited(d.dispose());
+    if (d != null) unawaited(d.dispose().catchError((Object _) {}));
     super.dispose();
   }
 
@@ -52,7 +52,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         firstAttemptByEmptyPassword: true,
       );
       if (!mounted) {
-        unawaited(doc.dispose());
+        unawaited(doc.dispose().catchError((Object _) {}));
         return;
       }
       setState(() {
@@ -138,7 +138,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     ),
                   ),
                 )
-              : PdfViewer.document(_doc!),
+              : PdfViewer(PdfDocumentRefDirect(_doc!)),
     );
   }
 }
