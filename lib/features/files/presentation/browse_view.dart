@@ -10,6 +10,7 @@ import '../domain/files_logic.dart';
 import 'file_actions.dart';
 import 'file_collection_view.dart';
 import 'file_manager_actions.dart';
+import 'files_home.dart';
 import 'sort_filter_widgets.dart';
 
 /// "Files" tab: a real file manager (needs the optional "all files access").
@@ -57,7 +58,7 @@ class _BrowseViewState extends ConsumerState<BrowseView> with WidgetsBindingObse
     if (access == null) return const Center(child: CircularProgressIndicator());
     if (!access) return _permissionCard(context);
     final path = ref.watch(browsePathProvider);
-    if (path == null) return _roots(context);
+    if (path == null) return const FilesHome();
     return _folder(context, path);
   }
 
@@ -100,38 +101,6 @@ class _BrowseViewState extends ConsumerState<BrowseView> with WidgetsBindingObse
           ],
         ),
       ),
-    );
-  }
-
-  Widget _roots(BuildContext context) {
-    final roots = storageRoots();
-    if (roots.isEmpty) {
-      return const EmptyState(
-        icon: Icons.folder_off_rounded,
-        title: 'No storage found',
-        message: 'Use "Open file" to pick a file instead.',
-      );
-    }
-    final scheme = Theme.of(context).colorScheme;
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      itemCount: roots.length,
-      itemBuilder: (context, i) {
-        final r = roots[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          elevation: 0,
-          color: scheme.surfaceContainerLow,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          child: ListTile(
-            leading: Icon(r.icon, color: scheme.primary),
-            title: Text(r.label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(r.path, maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => ref.read(browsePathProvider.notifier).open(r.path),
-          ),
-        );
-      },
     );
   }
 

@@ -30,6 +30,14 @@ Legend: [x] done in code (untested on device) | [ ] planned
 - [ ] Next: multi-file project view with tabs, search/replace, console panel in preview, Markdown/HTML split view,
       create PDF/DOCX/XLSX/PPTX/EPUB files, Open With Fyleon, text selection in the EPUB reader
 
+## Session 6 (code written, awaiting device test)
+- [x] Google-Files-style home: recent, categories with sizes, collections, storage with free space
+- [x] Trash with restore/undo/auto-purge, Starred, Favorites, Safe folder (PIN)
+- [x] Audio and video player (MP3, M4A, FLAC, WAV, MP4, MKV, WEBM...)
+- [x] Fyleon appears in Open with / Share / Send to (any file type)
+- [ ] Installed apps list, biometric unlock for Safe folder, encryption of the Safe folder, Save to / Download in
+- [ ] Create new PDF/DOCX/XLSX/PPTX/EPUB files + their editors (next big block)
+
 ## Benchmarks to beat (later phases)
 - EPUB: Kindle - highlights, notes, bookmarks, dictionary/translate, X-ray style info, fonts, themes, brightness, reading progress/stats, cloud-free sync through the user's Drive.
 - Office: Microsoft Word/Excel/PowerPoint - full layout, styles, tables, charts, tracked changes, formulas, slide show; plus extras (AI assist via AI Vault).

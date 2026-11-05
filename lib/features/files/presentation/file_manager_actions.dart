@@ -8,7 +8,9 @@ import '../../editor/editor_screen.dart';
 import '../../preview/preview_screen.dart';
 import '../application/browse_controller.dart';
 import '../application/files_providers.dart';
+import '../application/collections_providers.dart';
 import '../data/file_ops.dart';
+import '../data/trash_service.dart';
 import '../domain/file_item.dart';
 import '../domain/file_kind.dart';
 import 'file_actions.dart';
@@ -174,11 +176,21 @@ Future<void> _createWebProjectFlow(BuildContext context, WidgetRef ref, String d
   }
 }
 
-/// Long-press menu for a file or folder.
-Future<void> showItemMenu(BuildContext context, WidgetRef ref, FileItem item, String dir) {
+/// Long-press menu for a file or folder. [onGone] is called when the item left its folder
+/// (trashed, moved, renamed) so that lists can hide it right away.
+Future<void> showItemMenu(
+  BuildContext context,
+  WidgetRef ref,
+  FileItem item,
+  String dir, {
+  void Function(String path)? onGone,
+}) {
+  final starred = ref.read(starredProvider).contains(item.path);
+  final favorite = ref.read(favoritesProvider).contains(item.path);
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     builder: (ctx) => SafeArea(
       child: SingleChildScrollView(
         child: Column(
@@ -189,6 +201,15 @@ Future<void> showItemMenu(BuildContext context, WidgetRef ref, FileItem item, St
               child: Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
             const SizedBox(height: 4),
+            if (!item.isDir)
+              ListTile(
+                leading: const Icon(Icons.open_in_new_rounded),
+                title: const Text('Open'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  openFromBrowse(context, ref, item);
+                },
+              ),
             if (isEditableItem(item))
               ListTile(
                 leading: const Icon(Icons.edit_rounded),
@@ -208,11 +229,27 @@ Future<void> showItemMenu(BuildContext context, WidgetRef ref, FileItem item, St
                 },
               ),
             ListTile(
+              leading: Icon(starred ? Icons.star_rounded : Icons.star_border_rounded),
+              title: Text(starred ? 'Remove from Starred' : 'Add to Starred'),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(starredProvider.notifier).toggle(item.path);
+              },
+            ),
+            ListTile(
+              leading: Icon(favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+              title: Text(favorite ? 'Remove from Favorites' : 'Add to Favorites'),
+              onTap: () {
+                Navigator.pop(ctx);
+                ref.read(favoritesProvider.notifier).toggle(item.path);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.drive_file_rename_outline_rounded),
               title: const Text('Rename'),
               onTap: () {
                 Navigator.pop(ctx);
-                _renameFlow(context, ref, item, dir);
+                _renameFlow(context, ref, item, dir, onGone);
               },
             ),
             ListTile(
@@ -234,11 +271,19 @@ Future<void> showItemMenu(BuildContext context, WidgetRef ref, FileItem item, St
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline_rounded),
-              title: const Text('Delete'),
+              leading: const Icon(Icons.lock_outline_rounded),
+              title: const Text('Move to Safe folder'),
               onTap: () {
                 Navigator.pop(ctx);
-                _deleteFlow(context, ref, item, dir);
+                _toSafeFlow(context, ref, item, dir, onGone);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: const Text('Move to Trash'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _trashFlow(context, ref, item, dir, onGone);
               },
             ),
             ListTile(
@@ -257,39 +302,79 @@ Future<void> showItemMenu(BuildContext context, WidgetRef ref, FileItem item, St
   );
 }
 
-Future<void> _renameFlow(BuildContext context, WidgetRef ref, FileItem item, String dir) async {
+Future<void> _forget(WidgetRef ref, String path) async {
+  await ref.read(recentsProvider.notifier).remove(path);
+  await ref.read(starredProvider.notifier).remove(path);
+  await ref.read(favoritesProvider.notifier).remove(path);
+}
+
+Future<void> _renameFlow(BuildContext context, WidgetRef ref, FileItem item, String dir, void Function(String)? onGone) async {
   final name = await promptText(context, title: 'Rename', initial: item.name, confirm: 'Rename');
   if (name == null || name.trim() == item.name || !context.mounted) return;
   try {
-    await renameEntity(item.path, name);
+    final target = await renameEntity(item.path, name);
     await ref.read(recentsProvider.notifier).remove(item.path);
+    await ref.read(starredProvider.notifier).rename(item.path, target);
+    await ref.read(favoritesProvider.notifier).rename(item.path, target);
     ref.invalidate(directoryListingProvider(dir));
+    onGone?.call(item.path);
   } catch (e) {
     if (context.mounted) _toast(context, friendlyError(e).message);
   }
 }
 
-Future<void> _deleteFlow(BuildContext context, WidgetRef ref, FileItem item, String dir) async {
+Future<void> _trashFlow(BuildContext context, WidgetRef ref, FileItem item, String dir, void Function(String)? onGone) async {
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: Text(item.isDir ? 'Delete folder?' : 'Delete file?'),
-      content: Text(item.isDir
-          ? '"${item.name}" and everything inside it will be deleted. This cannot be undone.'
-          : '"${item.name}" will be deleted. This cannot be undone.'),
+      icon: const Icon(Icons.delete_outline_rounded),
+      title: Text(item.isDir ? 'Move folder to Trash?' : 'Move file to Trash?'),
+      content: Text(
+        item.isDir
+            ? '"${item.name}" and everything inside it will go to the Trash. You can restore it within 30 days.'
+            : '"${item.name}" will go to the Trash. You can restore it within 30 days.',
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Move to Trash')),
       ],
     ),
   );
   if (ok != true || !context.mounted) return;
+  final messenger = ScaffoldMessenger.of(context);
   try {
-    await deleteEntity(item.path);
-    await ref.read(recentsProvider.notifier).remove(item.path);
+    final entry = await moveToTrash(item.path);
+    await _forget(ref, item.path);
     ref.invalidate(directoryListingProvider(dir));
+    onGone?.call(item.path);
+    messenger.showSnackBar(SnackBar(
+      content: Text('"${item.name}" moved to Trash'),
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () async {
+          try {
+            await restoreEntry(entry);
+            ref.invalidate(directoryListingProvider);
+          } catch (_) {}
+        },
+      ),
+    ));
   } catch (e) {
-    if (context.mounted) _toast(context, friendlyError(e).message);
+    messenger.showSnackBar(SnackBar(content: Text(friendlyError(e).message)));
+  }
+}
+
+Future<void> _toSafeFlow(BuildContext context, WidgetRef ref, FileItem item, String dir, void Function(String)? onGone) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    final safe = await ref.read(safeServiceProvider).directory();
+    await moveEntity(item.path, safe.path);
+    await _forget(ref, item.path);
+    ref.invalidate(directoryListingProvider(dir));
+    onGone?.call(item.path);
+    messenger.showSnackBar(SnackBar(content: Text('"${item.name}" moved to the Safe folder')));
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(friendlyError(e).message)));
   }
 }
 

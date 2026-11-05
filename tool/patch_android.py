@@ -164,6 +164,53 @@ def patch_network_security():
     print("network security config ok")
 
 
+INTENT_SNIPPET = """
+            <!-- fyleon-intents: Fyleon shows up in Open with / Share / Send to -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="content"/>
+                <data android:scheme="file"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="*/*"/>
+            </intent-filter>
+        """
+
+
+def patch_intents_and_activity():
+    text = MANIFEST.read_text("utf-8")
+    if "fyleon-intents" not in text:
+        m = re.search(r'android:name="\.MainActivity"', text)
+        if m:
+            end = text.find("</activity>", m.end())
+            if end != -1:
+                text = text[:end] + INTENT_SNIPPET + text[end:]
+                MANIFEST.write_text(text, "utf-8")
+        else:
+            print("WARNING: .MainActivity not found in the manifest, intent filters skipped")
+    # native side: replace the generated MainActivity with ours
+    kotlin_root = ROOT / "android/app/src/main/kotlin"
+    targets = list(kotlin_root.rglob("MainActivity.kt")) if kotlin_root.exists() else []
+    src = (ROOT / "tool/templates/MainActivity.kt").read_text("utf-8")
+    if not targets:
+        dest = kotlin_root / "com/fyleon/app/MainActivity.kt"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        targets = [dest]
+    for t in targets:
+        t.write_text(src, "utf-8")
+    print("intent filters + MainActivity ok")
+
+
 def patch_gradle_properties(cfg):
     """build.shrinkCode=false in the config -> android/gradle.properties gets shrink=false
     (same effect as `flutter build --no-shrink`: R8 off). Default: R8 off until the keep rules
@@ -185,3 +232,4 @@ if __name__ == "__main__":
     patch_gradle()
     patch_gradle_properties(_cfg)
     patch_network_security()
+    patch_intents_and_activity()

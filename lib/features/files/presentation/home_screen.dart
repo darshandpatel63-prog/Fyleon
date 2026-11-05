@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/native/native_bridge.dart';
+import '../../../shared/widgets/empty_state.dart';
 import '../../ads/banner_ad_widget.dart';
 import '../../settings/settings_screen.dart';
 import '../application/browse_controller.dart';
+import '../application/collections_providers.dart';
 import '../application/files_providers.dart';
+import '../domain/file_item.dart';
 import '../domain/files_logic.dart';
 import 'browse_view.dart';
 import 'file_actions.dart';
@@ -14,6 +20,7 @@ import 'file_manager_actions.dart';
 import 'recent_view.dart';
 import 'sort_filter_widgets.dart';
 
+/// Tabs: Files (file manager) - Recent (opened with Fyleon) - Settings.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -21,18 +28,47 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _tab = 0;
+class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  int _tab = 0; // 0 Files, 1 Recent, 2 Settings
   bool _searching = false;
   final _searchController = TextEditingController();
+  StreamSubscription<void>? _incomingSub;
 
-  bool get _hasBrowse => ref.read(appConfigProvider).allFilesAccess;
-  int get _settingsIndex => _hasBrowse ? 2 : 1;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _incomingSub = NativeBridge.instance.onFilesReady.listen((_) => _checkIncoming());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkIncoming();
+      ref.read(trashProvider.notifier).purgeOld();
+    });
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _incomingSub?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkIncoming();
+  }
+
+  /// Files sent to Fyleon from "Open with", "Share" or "Send to" in other apps.
+  Future<void> _checkIncoming() async {
+    final paths = await NativeBridge.instance.takeFiles();
+    if (paths.isEmpty || !mounted) return;
+    final items = paths.map(FileItem.tryFromPath).whereType<FileItem>().where((i) => !i.isDir).toList();
+    if (items.isEmpty) return;
+    for (final it in items.skip(1)) {
+      await ref.read(recentsProvider.notifier).add(it);
+    }
+    if (!mounted) return;
+    await openFile(context, ref, items.first);
   }
 
   void _stopSearch() {
@@ -46,18 +82,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _stopSearch();
       return;
     }
-    if (_hasBrowse && _tab == 1 && ref.read(browsePathProvider.notifier).up()) return;
+    if (_tab == 0 && ref.read(browsePathProvider.notifier).up()) return;
     setState(() => _tab = 0);
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasBrowse = _hasBrowse;
     final browsePath = ref.watch(browsePathProvider);
     final mode = ref.watch(viewModeProvider);
     final scheme = Theme.of(context).colorScheme;
+    final filesEnabled = ref.read(appConfigProvider).allFilesAccess;
 
-    final canExit = _tab == 0 && !_searching;
+    final onFilesRoot = _tab == 0 && browsePath == null;
+    final canExit = onFilesRoot && !_searching;
+    final showListTools = _tab == 1 || (_tab == 0 && browsePath != null);
 
     return PopScope(
       canPop: canExit,
@@ -65,71 +103,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         if (!didPop) _onBack();
       },
       child: Scaffold(
-        appBar: _tab == _settingsIndex
+        appBar: _tab == 2
             ? null
             : AppBar(
                 title: _searching
                     ? TextField(
                         controller: _searchController,
                         autofocus: true,
-                        decoration: const InputDecoration(
-                          hintText: 'Search files',
-                          border: InputBorder.none,
-                        ),
+                        decoration: const InputDecoration(hintText: 'Search files', border: InputBorder.none),
                         onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
                       )
                     : ShaderMask(
-                        shaderCallback: (rect) => LinearGradient(
-                          colors: [scheme.primary, scheme.tertiary],
-                        ).createShader(rect),
+                        shaderCallback: (rect) => LinearGradient(colors: [scheme.primary, scheme.tertiary]).createShader(rect),
                         child: const Text(
                           AppConstants.appName,
                           style: TextStyle(fontWeight: FontWeight.w900, fontSize: 24, color: Colors.white),
                         ),
                       ),
-                leading: _searching
-                    ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: _stopSearch)
-                    : null,
-                actions: [
-                  if (!_searching)
-                    IconButton(
-                      tooltip: 'Search',
-                      icon: const Icon(Icons.search_rounded),
-                      onPressed: () => setState(() => _searching = true),
-                    ),
-                  IconButton(
-                    tooltip: mode == ViewMode.list ? 'Grid view' : 'List view',
-                    icon: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Icon(
-                        mode == ViewMode.list ? Icons.grid_view_rounded : Icons.view_list_rounded,
-                        key: ValueKey(mode),
-                      ),
-                    ),
-                    onPressed: () => ref.read(viewModeProvider.notifier).toggle(),
-                  ),
-                  IconButton(
-                    tooltip: 'Sort',
-                    icon: const Icon(Icons.sort_rounded),
-                    onPressed: () => showSortSheet(context, ref),
-                  ),
-                ],
+                leading: _searching ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: _stopSearch) : null,
+                actions: showListTools
+                    ? [
+                        if (!_searching)
+                          IconButton(tooltip: 'Search', icon: const Icon(Icons.search_rounded), onPressed: () => setState(() => _searching = true)),
+                        IconButton(
+                          tooltip: mode == ViewMode.list ? 'Grid view' : 'List view',
+                          icon: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(mode == ViewMode.list ? Icons.grid_view_rounded : Icons.view_list_rounded, key: ValueKey(mode)),
+                          ),
+                          onPressed: () => ref.read(viewModeProvider.notifier).toggle(),
+                        ),
+                        IconButton(tooltip: 'Sort', icon: const Icon(Icons.sort_rounded), onPressed: () => showSortSheet(context, ref)),
+                      ]
+                    : [
+                        IconButton(
+                          tooltip: 'Open a file',
+                          icon: const Icon(Icons.file_open_rounded),
+                          onPressed: () => pickAndOpenFile(context, ref),
+                        ),
+                      ],
               ),
         body: IndexedStack(
           index: _tab,
           children: [
+            filesEnabled
+                ? const BrowseView()
+                : EmptyState(
+                    icon: Icons.folder_open_rounded,
+                    title: 'File manager is turned off',
+                    message: 'Pick a file to open it, or turn on "allFilesAccess" in config/fyleon_config.json.',
+                    actionLabel: 'Open a file',
+                    onAction: () => pickAndOpenFile(context, ref),
+                  ),
             const RecentView(),
-            if (hasBrowse) const BrowseView(),
             const SettingsScreen(),
           ],
         ),
-        floatingActionButton: _tab == 0
+        floatingActionButton: _tab == 1
             ? FloatingActionButton.extended(
                 onPressed: () => pickAndOpenFile(context, ref),
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Open file'),
               )
-            : (hasBrowse && _tab == 1 && browsePath != null)
+            : (filesEnabled && _tab == 0 && browsePath != null)
                 ? FloatingActionButton.extended(
                     onPressed: () => showCreateSheet(context, ref, browsePath),
                     icon: const Icon(Icons.add_rounded),
@@ -146,19 +182,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (_searching) _stopSearch();
                 setState(() => _tab = i);
               },
-              destinations: [
-                const NavigationDestination(
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.folder_outlined),
+                  selectedIcon: Icon(Icons.folder_rounded),
+                  label: 'Files',
+                ),
+                NavigationDestination(
                   icon: Icon(Icons.history_rounded),
                   selectedIcon: Icon(Icons.history_toggle_off_rounded),
                   label: 'Recent',
                 ),
-                if (hasBrowse)
-                  const NavigationDestination(
-                    icon: Icon(Icons.folder_outlined),
-                    selectedIcon: Icon(Icons.folder_rounded),
-                    label: 'Files',
-                  ),
-                const NavigationDestination(
+                NavigationDestination(
                   icon: Icon(Icons.settings_outlined),
                   selectedIcon: Icon(Icons.settings_rounded),
                   label: 'Settings',

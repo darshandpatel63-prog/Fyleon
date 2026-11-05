@@ -9,6 +9,19 @@
 - Parsing of untrusted files (EPUB/Office/ZIP) runs in isolates; size limits protect memory (see AppConstants).
 - ZIP listing never extracts files (no zip-slip risk yet). When extraction is added: sanitize paths, limit size/ratio.
 
+## Open with / Share (incoming files)
+Fyleon registers for VIEW/SEND/SEND_MULTIPLE of any type. Incoming content:// files are copied into the app cache
+(`cache/incoming/<time>/`) and opened read-only from there. Names are sanitized. Nothing is uploaded.
+
+## Safe folder
+PIN is stored only as a salted SHA-256 hash (prefs). Files sit in the app-private directory (other apps cannot read it
+without root). Not yet encrypted at rest; 5 wrong PINs close the screen; "Forgot PIN" erases the folder. Plan: AES-GCM
+with a key in Android Keystore + biometric unlock.
+
+## Trash
+Deleted items move to a hidden folder `.FyleonTrash` on the same storage (with a .nomedia file). Anyone with file access
+can still read them there until they are purged (30 days) or deleted forever.
+
 ## Local preview server
 `features/preview/local_server.dart` binds to 127.0.0.1 only (not reachable from the network), serves only files inside the
 project folder (path traversal blocked), random port, stopped when the preview closes. Android allows plain HTTP for

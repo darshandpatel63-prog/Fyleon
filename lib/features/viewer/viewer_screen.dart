@@ -5,6 +5,7 @@ import '../files/domain/file_kind.dart';
 import 'archive_viewer.dart';
 import 'epub_viewer.dart';
 import 'image_viewer.dart';
+import 'media_player_screen.dart';
 import 'office_viewer.dart';
 import 'pdf_viewer.dart';
 import 'pptx_viewer.dart';
@@ -47,10 +48,7 @@ class ViewerScreen extends StatelessWidget {
         return OfficeViewerScreen(item: item);
       case FileKind.audio:
       case FileKind.video:
-        return UnsupportedViewerScreen(
-          item: item,
-          reason: 'Audio and video playback is planned for a later phase.',
-        );
+        return MediaPlayerScreen(item: item);
       case FileKind.other:
         return UnsupportedViewerScreen(item: item);
     }

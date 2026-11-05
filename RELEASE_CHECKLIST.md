@@ -26,6 +26,12 @@ set it to true, run "Android Smoke Test"; if the app starts, keep it (smaller, o
 - [ ] Target API level meets Play's current requirement (the Flutter 3.47 template should; verify in Play Console)
 - [ ] Internal testing track first, then closed/open testing, then production (new personal accounts need a closed test period)
 
+## C2. Play Console declarations for this app
+- All files access (MANAGE_EXTERNAL_STORAGE): core feature = file manager. Prepare a short video and justification.
+- Intent filters for VIEW/SEND with any MIME type are allowed for file managers/viewers.
+- If an installed-apps list is added later: QUERY_ALL_PACKAGES needs its own declaration (or use a narrower approach).
+- Data safety: no data leaves the device except AdMob (ads) and optional Google Drive backup (later).
+
 ## D. Each release
 - [ ] Bump `version:` in pubspec.yaml (name part); build number = CI run number
 - [ ] Update HANDOVER.md, FEATURES.md

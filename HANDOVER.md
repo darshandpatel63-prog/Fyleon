@@ -102,6 +102,28 @@ Added this session (all untested, first CI run may show compile errors):
   now `PdfViewer(PdfDocumentRefDirect(doc))`. All other new code (editor, preview, EPUB pagination, PPTX, file manager)
   passed the analyzer. Also removed the unused/unnecessary imports and an unused field.
 
+## Session 6 (Google-Files-style home + more) - code written, NOT compiled yet
+Owner tested build with all-files access: Files tab only showed 7 shortcut cards. New design (like Google Files):
+- Files tab home (`files_home.dart`): Recent carousel (newest media/docs from a one-time storage scan), Categories
+  (Downloads, Images, Videos, Audio, Documents, APKs & archives with sizes), Collections (Starred, Favorites, Safe folder,
+  Trash), All storage (free/total via native StatFs). `storage_scan.dart` walks the storage in an isolate (skips hidden
+  folders and Android/). Pull to refresh.
+- Tabs are now Files | Recent (opened with Fyleon) | Settings.
+- Trash/recycle bin: delete = confirm dialog, then MOVE to hidden `<volume>/.FyleonTrash/<id>/` with meta.json; Undo
+  snackbar; restore / delete forever / empty; auto purge after 30 days (`trash_service.dart`, `trash_screen.dart`).
+- Starred + Favorites ("like" = heart) collections (SharedPreferences path sets). Item menu: Open, Edit, Preview, Star,
+  Favorite, Rename, Copy, Move, Move to Safe folder, Move to Trash, Details.
+- Safe folder (`safe_folder_screen.dart`, `safe_service.dart`): PIN (salted SHA-256 in prefs), files live in the app's
+  private dir (path_provider). Forgot PIN = erase folder. NOT encrypted at rest yet; deleted on uninstall (UI says so).
+  Biometric unlock will come with AI Vault (local_auth needs FlutterFragmentActivity).
+- Audio + video player (`media_player_screen.dart`, video_player plugin): MP3/M4A/FLAC/WAV/MP4/MKV/WEBM, seek, 10s skip, speed.
+- "Open with / Share / Send to": manifest intent filters (VIEW/SEND/SEND_MULTIPLE, any type) + native MainActivity.kt copy
+  (tool/templates/MainActivity.kt, copied by tool/patch_android.py) copies the content:// file to cache and Flutter opens it
+  (`native_bridge.dart`, handled in `home_screen.dart`). "Save to / Download in" (DocumentsProvider) is NOT done.
+- NOT done (honest): installed apps list (needs QUERY_ALL_PACKAGES = Play restricted, or native code); Android/data of other
+  apps is blocked by Android 11+ for every app.
+- New deps: video_player, path_provider, crypto.
+
 ## Next steps (in order)
 0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
    PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,
