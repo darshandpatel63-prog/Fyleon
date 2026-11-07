@@ -81,7 +81,7 @@ class _EpubViewerScreenState extends State<EpubViewerScreen> {
     final result = await paginateBook(
       data: data,
       width: size.width,
-      height: size.height,
+      height: size.height - 6,
       style: style,
       cancelled: () => token != _token || !mounted,
       onProgress: (v) {

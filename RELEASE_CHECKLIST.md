@@ -30,6 +30,7 @@ set it to true, run "Android Smoke Test"; if the app starts, keep it (smaller, o
 - All files access (MANAGE_EXTERNAL_STORAGE): core feature = file manager. Prepare a short video and justification.
 - Intent filters for VIEW/SEND with any MIME type are allowed for file managers/viewers.
 - If an installed-apps list is added later: QUERY_ALL_PACKAGES needs its own declaration (or use a narrower approach).
+- REQUEST_INSTALL_PACKAGES (install APK from the file manager): declaration + short video.
 - Data safety: no data leaves the device except AdMob (ads) and optional Google Drive backup (later).
 
 ## D. Each release

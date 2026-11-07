@@ -67,6 +67,8 @@ class AdService {
   // ---------------- banner ----------------
   bool get bannerAllowed => supported && _remote.bannerEnabled;
 
+  bool get nativeAllowed => supported && _remote.nativeEnabled;
+
   // ---------------- interstitial ----------------
   void _loadInterstitial() {
     if (!_initialized) return;

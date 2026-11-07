@@ -3,7 +3,10 @@ package com.fyleon.app
 import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.StatFs
+import android.provider.Settings
+import androidx.core.content.FileProvider
 import android.provider.OpenableColumns
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -38,6 +41,45 @@ class MainActivity : FlutterActivity() {
                         result.success(mapOf("total" to st.totalBytes, "free" to st.availableBytes))
                     } catch (e: Exception) {
                         result.success(null)
+                    }
+                }
+                "installApk" -> {
+                    try {
+                        val path = call.argument<String>("path")
+                        val file = File(path!!)
+                        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
+                            val i = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + packageName))
+                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(i)
+                            result.success("need_permission")
+                        } else {
+                            val uri = FileProvider.getUriForFile(this, packageName + ".fileprovider", file)
+                            val i = Intent(Intent.ACTION_VIEW)
+                            i.setDataAndType(uri, "application/vnd.android.package-archive")
+                            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(i)
+                            result.success("started")
+                        }
+                    } catch (e: Exception) {
+                        result.success("error: " + e.message)
+                    }
+                }
+                "openPlayProtect" -> {
+                    try {
+                        val i = Intent()
+                        i.setClassName("com.google.android.gms", "com.google.android.gms.security.settings.VerifyAppsSettingsActivity")
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(i)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        try {
+                            val market = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.android.vending"))
+                            market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            startActivity(market)
+                            result.success(true)
+                        } catch (e2: Exception) {
+                            result.success(false)
+                        }
                     }
                 }
                 else -> result.notImplemented()

@@ -7,6 +7,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/native/native_bridge.dart';
 import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/floating_dock.dart';
 import '../../ads/banner_ad_widget.dart';
 import '../../settings/settings_screen.dart';
 import '../application/browse_controller.dart';
@@ -20,7 +21,14 @@ import 'file_manager_actions.dart';
 import 'recent_view.dart';
 import 'sort_filter_widgets.dart';
 
+const _dockItems = [
+  DockItem(Icons.folder_outlined, Icons.folder_rounded, 'Files'),
+  DockItem(Icons.history_rounded, Icons.history_toggle_off_rounded, 'Recent'),
+  DockItem(Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
+];
+
 /// Tabs: Files (file manager) - Recent (opened with Fyleon) - Settings.
+/// Phone: floating dock. Tablet / desktop / foldable: side navigation rail.
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -29,7 +37,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
-  int _tab = 0; // 0 Files, 1 Recent, 2 Settings
   bool _searching = false;
   final _searchController = TextEditingController();
   StreamSubscription<void>? _incomingSub;
@@ -77,25 +84,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     setState(() => _searching = false);
   }
 
+  void _setTab(int i) {
+    if (_searching) _stopSearch();
+    ref.read(homeTabProvider.notifier).set(i);
+  }
+
   void _onBack() {
     if (_searching) {
       _stopSearch();
       return;
     }
-    if (_tab == 0 && ref.read(browsePathProvider.notifier).up()) return;
-    setState(() => _tab = 0);
+    if (ref.read(homeTabProvider) == 0 && ref.read(browsePathProvider.notifier).up()) return;
+    ref.read(homeTabProvider.notifier).set(0);
   }
 
   @override
   Widget build(BuildContext context) {
+    final tab = ref.watch(homeTabProvider);
     final browsePath = ref.watch(browsePathProvider);
     final mode = ref.watch(viewModeProvider);
     final scheme = Theme.of(context).colorScheme;
     final filesEnabled = ref.read(appConfigProvider).allFilesAccess;
 
-    final onFilesRoot = _tab == 0 && browsePath == null;
+    final onFilesRoot = tab == 0 && browsePath == null;
     final canExit = onFilesRoot && !_searching;
-    final showListTools = _tab == 1 || (_tab == 0 && browsePath != null);
+    final showListTools = tab == 1 || (tab == 0 && browsePath != null);
+
+    final width = MediaQuery.sizeOf(context).width;
+    final wide = width >= 720;
+    final extended = width >= 1100;
+
+    final pages = IndexedStack(
+      index: tab,
+      children: [
+        filesEnabled
+            ? const BrowseView()
+            : EmptyState(
+                icon: Icons.folder_open_rounded,
+                title: 'File manager is turned off',
+                message: 'Pick a file to open it, or turn on "allFilesAccess" in config/fyleon_config.json.',
+                actionLabel: 'Open a file',
+                onAction: () => pickAndOpenFile(context, ref),
+              ),
+        const RecentView(),
+        const SettingsScreen(),
+      ],
+    );
 
     return PopScope(
       canPop: canExit,
@@ -103,7 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
         if (!didPop) _onBack();
       },
       child: Scaffold(
-        appBar: _tab == 2
+        appBar: tab == 2
             ? null
             : AppBar(
                 title: _searching
@@ -136,36 +170,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         IconButton(tooltip: 'Sort', icon: const Icon(Icons.sort_rounded), onPressed: () => showSortSheet(context, ref)),
                       ]
                     : [
-                        IconButton(
-                          tooltip: 'Open a file',
-                          icon: const Icon(Icons.file_open_rounded),
-                          onPressed: () => pickAndOpenFile(context, ref),
-                        ),
+                        IconButton(tooltip: 'Open a file', icon: const Icon(Icons.file_open_rounded), onPressed: () => pickAndOpenFile(context, ref)),
                       ],
               ),
-        body: IndexedStack(
-          index: _tab,
-          children: [
-            filesEnabled
-                ? const BrowseView()
-                : EmptyState(
-                    icon: Icons.folder_open_rounded,
-                    title: 'File manager is turned off',
-                    message: 'Pick a file to open it, or turn on "allFilesAccess" in config/fyleon_config.json.',
-                    actionLabel: 'Open a file',
-                    onAction: () => pickAndOpenFile(context, ref),
+        body: wide
+            ? Row(
+                children: [
+                  NavigationRail(
+                    selectedIndex: tab,
+                    extended: extended,
+                    labelType: extended ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+                    onDestinationSelected: _setTab,
+                    destinations: [
+                      for (final d in _dockItems)
+                        NavigationRailDestination(icon: Icon(d.icon), selectedIcon: Icon(d.selectedIcon), label: Text(d.label)),
+                    ],
                   ),
-            const RecentView(),
-            const SettingsScreen(),
-          ],
-        ),
-        floatingActionButton: _tab == 1
+                  const VerticalDivider(width: 1),
+                  Expanded(child: pages),
+                ],
+              )
+            : pages,
+        floatingActionButton: tab == 1
             ? FloatingActionButton.extended(
                 onPressed: () => pickAndOpenFile(context, ref),
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Open file'),
               )
-            : (filesEnabled && _tab == 0 && browsePath != null)
+            : (filesEnabled && tab == 0 && browsePath != null)
                 ? FloatingActionButton.extended(
                     onPressed: () => showCreateSheet(context, ref, browsePath),
                     icon: const Icon(Icons.add_rounded),
@@ -176,30 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           mainAxisSize: MainAxisSize.min,
           children: [
             const BannerAdWidget(),
-            NavigationBar(
-              selectedIndex: _tab,
-              onDestinationSelected: (i) {
-                if (_searching) _stopSearch();
-                setState(() => _tab = i);
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.folder_outlined),
-                  selectedIcon: Icon(Icons.folder_rounded),
-                  label: 'Files',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.history_rounded),
-                  selectedIcon: Icon(Icons.history_toggle_off_rounded),
-                  label: 'Recent',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.settings_outlined),
-                  selectedIcon: Icon(Icons.settings_rounded),
-                  label: 'Settings',
-                ),
-              ],
-            ),
+            if (!wide) FloatingDock(index: tab, items: _dockItems, onChanged: _setTab),
           ],
         ),
       ),

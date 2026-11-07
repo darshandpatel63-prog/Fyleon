@@ -25,23 +25,24 @@ class FadeSlideIn extends StatelessWidget {
 
 Route<T> fadeSlideRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
-    transitionDuration: const Duration(milliseconds: 320),
-    reverseTransitionDuration: const Duration(milliseconds: 240),
+    transitionDuration: const Duration(milliseconds: 420),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(
-        parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
-      );
-      return FadeTransition(
-        opacity: curved,
-        child: SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 0.04),
-            end: Offset.zero,
-          ).animate(curved),
-          child: child,
+      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutQuart, reverseCurve: Curves.easeInCubic);
+      final away = CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOutCubic);
+      // when ANOTHER page opens on top of this one, this page shrinks back slightly
+      return ScaleTransition(
+        scale: Tween<double>(begin: 1.0, end: 0.94).animate(away),
+        child: FadeTransition(
+          opacity: Tween<double>(begin: 1.0, end: 0.6).animate(away),
+          child: FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(begin: const Offset(0.0, 0.06), end: Offset.zero).animate(curved),
+              child: ScaleTransition(scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved), child: child),
+            ),
+          ),
         ),
       );
     },

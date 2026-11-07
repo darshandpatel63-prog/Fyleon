@@ -60,8 +60,14 @@ class HighlightingController extends TextEditingController {
   }
 }
 
-/// Keeps the indentation of the previous line when you press Enter.
+/// Keeps the indentation of the previous line when you press Enter, and adds one extra
+/// level after an opening bracket (or after ':' in Python / YAML).
 class AutoIndentFormatter extends TextInputFormatter {
+  AutoIndentFormatter({required this.unit, required this.colon});
+
+  final String unit;
+  final bool colon;
+
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
     final sel = newValue.selection;
@@ -74,9 +80,9 @@ class AutoIndentFormatter extends TextInputFormatter {
       final lineStart = before.lastIndexOf('\n') + 1;
       final prev = before.substring(lineStart);
       final indent = RegExp(r'^[ \t]*').stringMatch(prev) ?? '';
-      final trimmed = prev.trimRight();
-      final extra = (trimmed.endsWith('{') || trimmed.endsWith('(') || trimmed.endsWith('[') || trimmed.endsWith(':')) ? '  ' : '';
-      final insert = indent + extra;
+      final code = prev.trimRight();
+      final opens = code.endsWith('{') || code.endsWith('(') || code.endsWith('[') || (colon && code.endsWith(':'));
+      final insert = indent + (opens ? unit : '');
       if (insert.isEmpty) return newValue;
       final text = newValue.text.replaceRange(caret, caret, insert);
       return TextEditingValue(

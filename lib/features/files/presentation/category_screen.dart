@@ -49,7 +49,14 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                 decoration: const InputDecoration(hintText: 'Search', border: InputBorder.none),
                 onChanged: (_) => setState(() {}),
               )
-            : Text(widget.category.label),
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Hero(tag: 'cat-${widget.category.name}', child: Icon(widget.category.icon, color: widget.category.color)),
+                  const SizedBox(width: 10),
+                  Text(widget.category.label),
+                ],
+              ),
         actions: [
           IconButton(
             icon: Icon(_searching ? Icons.close_rounded : Icons.search_rounded),

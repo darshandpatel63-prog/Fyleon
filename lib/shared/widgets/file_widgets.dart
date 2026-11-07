@@ -57,6 +57,7 @@ class FileListTile extends StatelessWidget {
     required this.index,
     required this.onTap,
     this.onLongPress,
+    this.onMore,
     this.trailing,
   });
 
@@ -64,6 +65,7 @@ class FileListTile extends StatelessWidget {
   final int index;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onMore;
   final Widget? trailing;
 
   @override
@@ -88,7 +90,14 @@ class FileListTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12.5),
         ),
-        trailing: trailing,
+        trailing: trailing ??
+            (onMore == null
+                ? null
+                : IconButton(
+                    tooltip: 'More',
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onPressed: onMore,
+                  )),
       ),
     );
   }
@@ -101,12 +110,14 @@ class FileGridCard extends StatelessWidget {
     required this.index,
     required this.onTap,
     this.onLongPress,
+    this.onMore,
   });
 
   final FileItem item;
   final int index;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +131,10 @@ class FileGridCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
-          child: Column(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
@@ -160,6 +174,22 @@ class FileGridCard extends StatelessWidget {
                   ],
                 ),
               ),
+            ],
+          ),
+              if (onMore != null)
+                Positioned(
+                  top: 2,
+                  right: 2,
+                  child: Material(
+                    color: scheme.surface.withValues(alpha: 0.72),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: onMore,
+                      child: const Padding(padding: EdgeInsets.all(5), child: Icon(Icons.more_vert_rounded, size: 18)),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

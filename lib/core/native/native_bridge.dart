@@ -40,6 +40,25 @@ class NativeBridge {
     }
   }
 
+  /// Opens the system installer for an APK. Returns started / need_permission / error...
+  Future<String> installApk(String path) async {
+    if (!isAndroid) return 'unsupported';
+    try {
+      return await _channel.invokeMethod<String>('installApk', {'path': path}) ?? 'error';
+    } catch (e) {
+      return 'error: $e';
+    }
+  }
+
+  Future<bool> openPlayProtect() async {
+    if (!isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('openPlayProtect') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<StorageInfo?> storageInfo(String path) async {
     if (!isAndroid) return null;
     try {

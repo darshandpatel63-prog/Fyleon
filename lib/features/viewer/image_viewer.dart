@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/utils/format.dart';
+import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 
 class ImageViewerScreen extends StatelessWidget {
@@ -30,7 +31,7 @@ class ImageViewerScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: InteractiveViewer(
+      body: BottomSafe(child: InteractiveViewer(
         minScale: 0.5,
         maxScale: 8,
         child: Center(
@@ -46,7 +47,7 @@ class ImageViewerScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 }

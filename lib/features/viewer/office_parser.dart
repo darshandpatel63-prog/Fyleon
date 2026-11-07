@@ -59,9 +59,9 @@ OfficeResult parseOffice(String path) {
   }
 
   final ext = p.extension(path).toLowerCase();
-  if (ext == '.docx') return _docx(read);
-  if (ext == '.xlsx') return _xlsx(read);
-  if (ext == '.pptx') return _pptx(read, files.keys);
+  if (files.containsKey('word/document.xml') || ext == '.docx') return _docx(read);
+  if (files.containsKey('xl/workbook.xml') || ext == '.xlsx') return _xlsx(read);
+  if (files.containsKey('ppt/presentation.xml') || ext == '.pptx') return _pptx(read, files.keys);
   throw const FormatException('Unsupported Office format.');
 }
 

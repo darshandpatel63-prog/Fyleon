@@ -37,6 +37,16 @@ class FileItem {
 
   String get ext => extensionOf(name);
 
+  FileItem withKind(FileKind k) => FileItem(
+        path: path,
+        name: name,
+        size: size,
+        modified: modified,
+        added: added,
+        kind: k,
+        isDir: isDir,
+      );
+
   static FileItem? tryFromPath(String path) {
     try {
       final stat = FileStat.statSync(path);

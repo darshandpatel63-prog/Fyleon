@@ -13,6 +13,11 @@
 Fyleon registers for VIEW/SEND/SEND_MULTIPLE of any type. Incoming content:// files are copied into the app cache
 (`cache/incoming/<time>/`) and opened read-only from there. Names are sanitized. Nothing is uploaded.
 
+## Installing APKs
+Fyleon never installs silently: it hands the APK to Android's own installer (FileProvider read-only URI). The user must allow
+"install unknown apps" for Fyleon. Play Protect checks the app as usual. The SHA-256 of the file is shown so it can be compared.
+Play Console: REQUEST_INSTALL_PACKAGES needs a declaration (file manager use case).
+
 ## Safe folder
 PIN is stored only as a salted SHA-256 hash (prefs). Files sit in the app-private directory (other apps cannot read it
 without root). Not yet encrypted at rest; 5 wrong PINs close the screen; "Forgot PIN" erases the folder. Plan: AES-GCM

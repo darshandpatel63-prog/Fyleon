@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 import 'pptx_parser.dart';
 
@@ -82,7 +83,7 @@ class _PptxViewerScreenState extends State<PptxViewerScreen> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(bottom: 12, top: 6),
+          padding: EdgeInsets.only(bottom: 12 + bottomInset(context), top: 6),
           child: Text('Slide ${_page + 1} of ${deck.slides.length}', style: TextStyle(color: scheme.onSurfaceVariant)),
         ),
       ],
@@ -91,7 +92,7 @@ class _PptxViewerScreenState extends State<PptxViewerScreen> {
 
   Widget _list(PptxDeck deck) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 40),
+      padding: EdgeInsets.fromLTRB(12, 4, 12, 40 + bottomInset(context)),
       itemCount: deck.slides.length,
       itemBuilder: (context, i) => Padding(
         padding: const EdgeInsets.only(bottom: 14),

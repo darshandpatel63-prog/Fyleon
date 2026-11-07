@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/utils/format.dart';
+import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 import '../files/domain/file_kind.dart';
 
@@ -123,7 +124,7 @@ class _MediaPlayerScreenState extends State<MediaPlayerScreen> {
                         child: AnimatedOpacity(
                           opacity: (_showControls || _isAudio) ? 1 : 0,
                           duration: const Duration(milliseconds: 200),
-                          child: IgnorePointer(ignoring: !(_showControls || _isAudio), child: _controls(c, fg, dark)),
+                          child: IgnorePointer(ignoring: !(_showControls || _isAudio), child: BottomSafe(child: _controls(c, fg, dark))),
                         ),
                       ),
                     ],

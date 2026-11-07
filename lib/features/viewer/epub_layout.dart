@@ -40,7 +40,9 @@ class ReaderStyle {
 // ------------------------------------------------------------------ styles
 
 TextStyle blockStyle(Block b, ReaderStyle s) {
-  final base = TextStyle(fontSize: s.fontSize, height: s.lineHeight, color: s.color);
+  // inherit: false -> identical to the TextPainter used for page splitting (ignores the
+  // system 'bold text' setting and the theme letter spacing).
+  final base = TextStyle(inherit: false, fontSize: s.fontSize, height: s.lineHeight, color: s.color, letterSpacing: 0);
   switch (b.kind) {
     case BlockKind.heading:
       const scales = {1: 1.7, 2: 1.45, 3: 1.25};

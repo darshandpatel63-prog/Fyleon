@@ -211,6 +211,58 @@ def patch_intents_and_activity():
     print("intent filters + MainActivity ok")
 
 
+FILE_PROVIDER = """
+        <!-- fyleon.fileprovider: lets the system installer read an APK from any folder -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/fyleon_file_paths"/>
+        </provider>
+    """
+
+FILE_PATHS_XML = """<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <root-path name="root" path="/"/>
+    <cache-path name="cache" path="."/>
+    <files-path name="files" path="."/>
+</paths>
+"""
+
+
+def patch_installer():
+    xml_dir = ROOT / "android/app/src/main/res/xml"
+    xml_dir.mkdir(parents=True, exist_ok=True)
+    (xml_dir / "fyleon_file_paths.xml").write_text(FILE_PATHS_XML, "utf-8")
+    text = MANIFEST.read_text("utf-8")
+    text = set_permission(text, "REQUEST_INSTALL_PACKAGES", True)
+    if "fyleon.fileprovider" not in text:
+        end = text.rfind("</application>")
+        if end != -1:
+            text = text[:end] + FILE_PROVIDER + text[end:]
+    MANIFEST.write_text(text, "utf-8")
+    # androidx.core (FileProvider) must be on the compile classpath
+    for name in ("build.gradle.kts", "build.gradle"):
+        g = ROOT / "android/app" / name
+        if not g.exists():
+            continue
+        t = g.read_text("utf-8")
+        if "androidx.core:core" not in t:
+            kts = name.endswith(".kts")
+            dep = '    implementation("androidx.core:core:1.13.1")' if kts else "    implementation 'androidx.core:core:1.13.1'"
+            m = re.search(r"^dependencies\s*\{", t, re.M)
+            if m:
+                t = t[: m.end()] + "\n" + dep + t[m.end():]
+            else:
+                t = t.rstrip() + "\n\ndependencies {\n" + dep + "\n}\n"
+            g.write_text(t, "utf-8")
+        break
+    print("apk installer support ok")
+
+
 def patch_gradle_properties(cfg):
     """build.shrinkCode=false in the config -> android/gradle.properties gets shrink=false
     (same effect as `flutter build --no-shrink`: R8 off). Default: R8 off until the keep rules
@@ -233,3 +285,4 @@ if __name__ == "__main__":
     patch_gradle_properties(_cfg)
     patch_network_security()
     patch_intents_and_activity()
+    patch_installer()

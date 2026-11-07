@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../core/native/native_bridge.dart';
 import '../../../core/utils/format.dart';
 import '../../../shared/widgets/animations.dart';
 import '../../editor/editor_screen.dart';
 import '../../preview/preview_screen.dart';
+import '../../viewer/archive_viewer.dart';
 import '../application/browse_controller.dart';
 import '../application/files_providers.dart';
 import '../application/collections_providers.dart';
@@ -208,6 +210,27 @@ Future<void> showItemMenu(
                 onTap: () {
                   Navigator.pop(ctx);
                   openFromBrowse(context, ref, item);
+                },
+              ),
+            if (item.kind == FileKind.apk)
+              ListTile(
+                leading: const Icon(Icons.install_mobile_rounded),
+                title: const Text('Install'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final r = await NativeBridge.instance.installApk(item.path);
+                  if (context.mounted) {
+                    _toast(context, r == 'started' ? 'Installer opened' : (r == 'need_permission' ? 'Allow Fyleon to install apps, then try again' : 'Could not start the installer'));
+                  }
+                },
+              ),
+            if (!item.isDir && (item.kind == FileKind.apk || item.kind == FileKind.archive))
+              ListTile(
+                leading: const Icon(Icons.folder_zip_rounded),
+                title: const Text('Unpack / browse contents'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(fadeSlideRoute(ArchiveViewerScreen(item: item)));
                 },
               ),
             if (isEditableItem(item))

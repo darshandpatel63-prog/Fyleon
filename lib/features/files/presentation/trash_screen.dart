@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../../core/utils/format.dart';
+import '../../../shared/widgets/bottom_safe.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../application/browse_controller.dart';
 import '../application/collections_providers.dart';
@@ -99,6 +100,7 @@ class _TrashScreenState extends ConsumerState<TrashScreen> {
                 ),
                 Expanded(
                   child: ListView.builder(
+                    padding: EdgeInsets.only(bottom: bottomInset(context) + 16),
                     itemCount: items.length,
                     itemBuilder: (context, i) {
                       final e = items[i];

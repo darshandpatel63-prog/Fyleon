@@ -6,13 +6,15 @@
       "appId": "",
       "banner": "",
       "interstitial": "",
-      "rewarded": ""
+      "rewarded": "",
+      "native": ""
     },
     "ios": {
       "appId": "",
       "banner": "",
       "interstitial": "",
-      "rewarded": ""
+      "rewarded": "",
+      "native": ""
     }
   },
   "features": {

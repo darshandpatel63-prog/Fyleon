@@ -10,6 +10,7 @@ import 'package:flutter_highlight/themes/github.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/format.dart';
 import '../../shared/widgets/animations.dart';
+import '../../shared/widgets/bottom_safe.dart';
 import '../editor/editor_screen.dart';
 import '../files/domain/file_item.dart';
 import '../preview/preview_screen.dart';
@@ -181,7 +182,7 @@ class _TextViewerScreenState extends State<TextViewerScreen> {
 
     final text = SelectableText(data.text, style: mono);
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset(context)),
       child: (_wrap && !isCode)
           ? text
           : SingleChildScrollView(scrollDirection: Axis.horizontal, child: text),

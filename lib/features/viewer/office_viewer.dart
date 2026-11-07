@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 import '../files/domain/file_kind.dart';
 import 'office_parser.dart';
@@ -90,7 +91,7 @@ class _OfficeViewerScreenState extends State<OfficeViewerScreen> {
     final scheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context).textTheme;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 40 + bottomInset(context)),
       children: [
         Container(
           padding: const EdgeInsets.all(20),

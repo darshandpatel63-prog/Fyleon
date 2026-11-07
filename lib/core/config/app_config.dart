@@ -10,11 +10,13 @@ class AdUnitIds {
     required this.banner,
     required this.interstitial,
     required this.rewarded,
+    required this.native,
   });
 
   final String banner;
   final String interstitial;
   final String rewarded;
+  final String native;
 }
 
 /// Reads config/fyleon_config.json (the file YOU fill in).
@@ -36,11 +38,13 @@ class AppConfig {
     banner: 'ca-app-pub-3940256099942544/6300978111',
     interstitial: 'ca-app-pub-3940256099942544/1033173712',
     rewarded: 'ca-app-pub-3940256099942544/5224354917',
+    native: 'ca-app-pub-3940256099942544/2247696110',
   );
   static const iosTestIds = AdUnitIds(
     banner: 'ca-app-pub-3940256099942544/2934735716',
     interstitial: 'ca-app-pub-3940256099942544/4411468910',
     rewarded: 'ca-app-pub-3940256099942544/1712485313',
+    native: 'ca-app-pub-3940256099942544/3986624511',
   );
 
   static AdUnitIds get testIds => isIOS ? iosTestIds : androidTestIds;
@@ -79,6 +83,7 @@ class AppConfig {
           banner: pick('banner', test.banner),
           interstitial: pick('interstitial', test.interstitial),
           rewarded: pick('rewarded', test.rewarded),
+          native: pick('native', test.native),
         ),
         remoteConfigUrl: ((remote['githubJsonUrl'] as String?) ?? '').trim(),
         allFilesAccess: features['allFilesAccess'] == true,

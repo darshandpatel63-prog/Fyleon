@@ -124,6 +124,33 @@ Owner tested build with all-files access: Files tab only showed 7 shortcut cards
   apps is blocked by Android 11+ for every app.
 - New deps: video_player, path_provider, crypto.
 
+## Session 7 (owner tested build #~34: fixes + many features; code written, NOT compiled)
+Owner feedback and what was done:
+- Bottom content hidden behind Android nav buttons (media controls, images, EPUB, lists) -> `BottomSafe` + `bottomInset()`
+  (`shared/widgets/bottom_safe.dart`) used in all viewers/lists.
+- EPUB text cut at the bottom of the page: cause = display style differed from the TextPainter used for paging (system
+  "Bold text" setting + theme letter spacing). Fixed with `TextStyle(inherit: false, letterSpacing: 0)` + 6px safety.
+- "Scanned/image PDFs don't open": a file named "1 to 50" (no extension, 24.8 MB) showed "cannot preview". Now
+  `viewer/sniff.dart` reads the first bytes (magic numbers) and opens it as PDF/image/audio/video/Office/EPUB/APK/text.
+  Office/EPUB parsers also decide by content. If a real PDF still fails, the PDF screen prints the technical error (ask for it).
+- ZIP: real folder navigation (breadcrumb, up button, back key), tap a file -> extracted to cache and opened in its viewer
+  (code, images, PDF...), "Extract all" next to the archive (zip-slip protected). TAR/TGZ too.
+- APK: tapping opens `apk_screen.dart`: Install (native installer via FileProvider + REQUEST_INSTALL_PACKAGES, asks
+  "install unknown apps" permission first), Scan with Play Protect (opens the Play Protect screen), Unpack/browse, SHA-256.
+  Long-press menu also has Install and "Unpack / browse contents".
+- Every item has a three-dots button (list: trailing, grid: top-right) = same menu as long-press. Grid has S/M/L size options above it.
+- Native ads (AdMob template "small") after every 4 items (remote: nativeEvery / nativeMax / native), in list and grid, on the
+  Files home and in Settings. Hidden until loaded. Test native ids in app_config; real id goes in config (`native`).
+- Editor (SPCK/GitHub-like): find & replace, comment/uncomment (language aware: // # -- <!-- --> /* */), indent/outdent,
+  go to line, word + snippet suggestions, color swatches next to line numbers + color chips for the caret line, Problems panel
+  (JSON, bracket balance, HTML/XML tags, Python indentation) with tap-to-jump and a badge, Python indentation tip,
+  auto-indent 4 spaces for Python. NOT done: git (clone/commit/push), multi-file tabs, terminal, FTP.
+- Sample files: Settings > "Create sample files" writes `Fyleon Samples/` (PDF, no-extension PDF, EPUB, DOCX, XLSX, PPTX, ZIP, PNG,
+  WAV, SVG, code, intentionally broken py/json/html for the Problems panel, web project). No MP4/APK (cannot be generated).
+- UI: floating pill dock (phone) / NavigationRail (tablet, desktop, foldable), storage ring hero, gradient category tiles with
+  staggered entrance + Hero icon, scale/fade page transitions with the previous page receding.
+- Tests added: `code_tools_test.dart` (comments, indent, colors, suggestions, lint, ad slots), `trash_scan_test.dart`.
+
 ## Next steps (in order)
 0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
    PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,

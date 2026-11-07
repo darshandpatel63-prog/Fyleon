@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/utils/format.dart';
+import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 
 /// PDF viewer. Opens the document itself so that it can
@@ -106,7 +107,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
       appBar: AppBar(
         title: Text(widget.item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
-      body: _loading
+      body: BottomSafe(child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(
@@ -138,7 +139,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     ),
                   ),
                 )
-              : PdfViewer(PdfDocumentRefDirect(_doc!)),
+              : PdfViewer(PdfDocumentRefDirect(_doc!))),
     );
   }
 }

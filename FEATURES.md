@@ -38,6 +38,12 @@ Legend: [x] done in code (untested on device) | [ ] planned
 - [ ] Installed apps list, biometric unlock for Safe folder, encryption of the Safe folder, Save to / Download in
 - [ ] Create new PDF/DOCX/XLSX/PPTX/EPUB files + their editors (next big block)
 
+## Session 7 (code written, awaiting device test)
+- [x] Open by content (extension-less files), archives with folders + open/extract, APK install screen, three-dots menus
+- [x] Native ads between files, editor: find/replace, comment toggle, suggestions, color swatches, problems panel
+- [x] Sample files generator, floating dock + responsive rail, storage ring hero, new transitions
+- [ ] Git (clone/commit/push), multi-file tabs, terminal, installed-apps list, multi-select, compress to ZIP, create PDF/DOCX/XLSX/PPTX/EPUB
+
 ## Benchmarks to beat (later phases)
 - EPUB: Kindle - highlights, notes, bookmarks, dictionary/translate, X-ray style info, fonts, themes, brightness, reading progress/stats, cloud-free sync through the user's Drive.
 - Office: Microsoft Word/Excel/PowerPoint - full layout, styles, tables, charts, tracked changes, formulas, slide show; plus extras (AI assist via AI Vault).

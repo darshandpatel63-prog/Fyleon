@@ -13,6 +13,9 @@ class RemoteSettings {
     this.bannerEnabled = true,
     this.interstitialEnabled = true,
     this.rewardedEnabled = true,
+    this.nativeEnabled = true,
+    this.nativeEveryNItems = 4,
+    this.nativeMaxPerList = 6,
     this.interstitialEveryNFileCloses = 4,
     this.interstitialMinGapSeconds = 180,
     this.premiumThemeUnlockHours = 24,
@@ -21,6 +24,9 @@ class RemoteSettings {
   final bool bannerEnabled;
   final bool interstitialEnabled;
   final bool rewardedEnabled;
+  final bool nativeEnabled;
+  final int nativeEveryNItems;
+  final int nativeMaxPerList;
   final int interstitialEveryNFileCloses;
   final int interstitialMinGapSeconds;
   final int premiumThemeUnlockHours;
@@ -35,6 +41,9 @@ class RemoteSettings {
       bannerEnabled: b(ads['banner'], true),
       interstitialEnabled: b(ads['interstitial'], true),
       rewardedEnabled: b(ads['rewarded'], true),
+      nativeEnabled: b(ads['native'], true),
+      nativeEveryNItems: i(ads['nativeEvery'], 4, 3),
+      nativeMaxPerList: i(ads['nativeMax'], 6, 1),
       interstitialEveryNFileCloses:
           i(ads['interstitialEveryNFileCloses'], 4, 2),
       interstitialMinGapSeconds: i(ads['interstitialMinGapSeconds'], 180, 60),
@@ -47,6 +56,9 @@ class RemoteSettings {
           'banner': bannerEnabled,
           'interstitial': interstitialEnabled,
           'rewarded': rewardedEnabled,
+          'native': nativeEnabled,
+          'nativeEvery': nativeEveryNItems,
+          'nativeMax': nativeMaxPerList,
           'interstitialEveryNFileCloses': interstitialEveryNFileCloses,
           'interstitialMinGapSeconds': interstitialMinGapSeconds,
         },

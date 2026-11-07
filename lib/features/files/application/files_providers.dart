@@ -27,6 +27,32 @@ class ViewModeNotifier extends Notifier<ViewMode> {
 final viewModeProvider =
     NotifierProvider<ViewModeNotifier, ViewMode>(ViewModeNotifier.new);
 
+// ---------- which main tab is open (0 Files, 1 Recent, 2 Settings) ----------
+class HomeTabNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  void set(int v) => state = v;
+}
+
+final homeTabProvider = NotifierProvider<HomeTabNotifier, int>(HomeTabNotifier.new);
+
+// ---------- grid size (S / M / L) ----------
+const gridExtents = [130.0, 175.0, 235.0];
+
+class GridSizeNotifier extends Notifier<int> {
+  static const _key = 'grid_size';
+
+  @override
+  int build() => (ref.read(sharedPrefsProvider).getInt(_key) ?? 1).clamp(0, 2);
+
+  Future<void> set(int v) async {
+    state = v.clamp(0, 2);
+    await ref.read(sharedPrefsProvider).setInt(_key, state);
+  }
+}
+
+final gridSizeProvider = NotifierProvider<GridSizeNotifier, int>(GridSizeNotifier.new);
+
 // ---------- sort ----------
 class SortNotifier extends Notifier<SortOption> {
   static const _key = 'sort_option';

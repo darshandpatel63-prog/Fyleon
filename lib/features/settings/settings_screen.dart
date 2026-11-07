@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../shared/widgets/animations.dart';
 import '../files/application/browse_controller.dart';
+import '../ads/native_ad_tile.dart';
 import '../files/application/files_providers.dart';
+import '../files/data/file_ops.dart';
+import '../samples/sample_generator.dart';
 import 'themes_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -19,7 +24,7 @@ class SettingsScreen extends ConsumerWidget {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 40),
+        padding: const EdgeInsets.only(bottom: 120),
         children: [
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
@@ -33,6 +38,7 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => Navigator.of(context).push(fadeSlideRoute(const ThemesScreen())),
           ),
+          const NativeAdTile(),
           _section(context, 'Files'),
           ListTile(
             leading: Icon(Icons.folder_shared_rounded, color: scheme.primary),
@@ -65,6 +71,13 @@ class SettingsScreen extends ConsumerWidget {
               );
               if (ok == true) await ref.read(recentsProvider.notifier).clear();
             },
+          ),
+          _section(context, 'Testing'),
+          ListTile(
+            leading: Icon(Icons.science_rounded, color: scheme.primary),
+            title: const Text('Create sample files'),
+            subtitle: const Text('PDF, EPUB, Word, Excel, PowerPoint, code, ZIP, image, audio... to test every viewer'),
+            onTap: () => _samples(context, ref),
           ),
           _section(context, 'Coming soon'),
           ListTile(
@@ -109,6 +122,28 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _samples(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('Creating sample files...')));
+    try {
+      final roots = storageRoots();
+      String root;
+      if (roots.isNotEmpty && await hasAllFilesAccess()) {
+        root = p.join(roots.first.path, 'Documents');
+      } else {
+        root = (await getApplicationDocumentsDirectory()).path;
+      }
+      final path = await generateSampleFiles(root);
+      messenger.hideCurrentSnackBar();
+      ref.read(browsePathProvider.notifier).open(path);
+      ref.read(homeTabProvider.notifier).set(0);
+      messenger.showSnackBar(SnackBar(content: Text('Sample files created in $path')));
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(content: Text('Could not create the samples: ${friendlyError(e).message}')));
+    }
   }
 
   Widget _section(BuildContext context, String title) {

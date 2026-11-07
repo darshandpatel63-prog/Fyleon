@@ -6,7 +6,8 @@
 | Banner | bottom of the main screen, above navigation | loads silently; hidden until loaded; never in viewers |
 | Interstitial | after the user CLOSES a file | every 4th close, min 180 s gap (remote-configurable) |
 | Rewarded | unlock a premium theme for 24 h | only when the user taps "Watch ad" |
-Other AdMob formats (native, app open, rewarded interstitial) come later, carefully capped.
+| Native (small template) | after every 4 items in lists/grids, Files home, Settings | max 6 per list, hidden until loaded, labelled "Ad" by AdMob |
+Other AdMob formats (app open, rewarded interstitial) come later, carefully capped.
 
 ## Safety rules (account protection)
 - Test ids are in code (`AppConfig`). Real ids go ONLY in `config/fyleon_config.json`.
