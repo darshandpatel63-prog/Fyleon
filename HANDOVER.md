@@ -151,6 +151,8 @@ Owner feedback and what was done:
   staggered entrance + Hero icon, scale/fade page transitions with the previous page receding.
 - Tests added: `code_tools_test.dart` (comments, indent, colors, suggestions, lint, ad slots), `trash_scan_test.dart`.
 
+- Build #36: analyzer error `editor_screen.dart:285` ('num' cannot be assigned to 'int' in _jumpToLine) -> fixed with plain int math. Only 1 real error; the rest were lint infos.
+
 ## Next steps (in order)
 0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
    PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,

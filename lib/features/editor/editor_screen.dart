@@ -281,7 +281,9 @@ class _EditorScreenState extends State<EditorScreen> {
     final c = _controller;
     if (c == null) return;
     final t = c.text;
-    final off = math.min(t.length, _offsetOfLine(t, line1) + math.max(0, col1 - 1));
+    final int lineStart = _offsetOfLine(t, line1);
+    final int wanted = lineStart + (col1 > 1 ? col1 - 1 : 0);
+    final int off = wanted > t.length ? t.length : wanted;
     c.selection = TextSelection.collapsed(offset: off);
     _focus.requestFocus();
     _scrollToLine(line1 - 1);
