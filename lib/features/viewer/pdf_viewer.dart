@@ -5,7 +5,9 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/utils/format.dart';
 import '../../shared/widgets/bottom_safe.dart';
+import '../../shared/widgets/page_indicator_pill.dart';
 import '../files/domain/file_item.dart';
+import 'viewer_chrome.dart';
 
 /// PDF viewer. Opens the document itself so that it can
 ///  - ask for a password (protected PDFs),
@@ -21,6 +23,8 @@ class PdfViewerScreen extends StatefulWidget {
 
 class _PdfViewerScreenState extends State<PdfViewerScreen> {
   PdfDocument? _doc;
+  final _controller = PdfViewerController();
+  int _page = 1;
   bool _loading = true;
   String? _error;
   String? _details;
@@ -106,6 +110,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [ViewerActions(item: widget.item)],
       ),
       body: BottomSafe(child: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -139,7 +144,36 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                     ),
                   ),
                 )
-              : PdfViewer(PdfDocumentRefDirect(_doc!))),
+              : _viewer()),
+    );
+  }
+
+  /// All pages in one continuous scroll (like a book roll) + "3/52" pill with up / down page buttons.
+  Widget _viewer() {
+    final doc = _doc!;
+    final total = doc.pages.length;
+    void go(int n) => _controller.goToPage(pageNumber: n.clamp(1, total));
+    return Stack(
+      children: [
+        PdfViewer(
+          PdfDocumentRefDirect(doc),
+          controller: _controller,
+          params: PdfViewerParams(
+            onPageChanged: (n) {
+              if (n != null && n != _page && mounted) setState(() => _page = n);
+            },
+          ),
+        ),
+        BottomRightOverlay(
+          child: PageIndicatorPill(
+            current: _page.clamp(1, total),
+            total: total,
+            onPrev: () => go(_page - 1),
+            onNext: () => go(_page + 1),
+            onJump: go,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -27,6 +27,22 @@ with a key in Android Keystore + biometric unlock.
 Deleted items move to a hidden folder `.FyleonTrash` on the same storage (with a .nomedia file). Anyone with file access
 can still read them there until they are purged (30 days) or deleted forever.
 
+## Fyleon Dash (file sharing, session 8)
+- Works only while the Send / Receive screen is open; the TCP server and the UDP beacon stop when it closes (running transfers are cut).
+- Entering via QR or the 5-7 digit code = automatic accept; picking from the nearby list needs the sender's tap on Accept (90 s timeout).
+  5 wrong codes from one address block it for 60 s. The code is random (Random.secure), new for every sending session.
+- File names from the other device are never trusted (no folders, no leading dots, no special characters; never overwrites: "name (1).ext").
+- Plain TCP sockets: **data is NOT encrypted yet** and the beacon is visible to everybody on the same network. Use own Wi-Fi / hotspot.
+  Plan: ChaCha20-Poly1305 with a key carried in the QR code (and a PAKE for the typed code).
+- The beacon contains device name, number/size of files and a short hash of the code (only a hash prefix; a 6-digit code can still be
+  brute-forced offline from it, so the sender's approval/rate limit is the real protection, not the hash).
+- Unknown files are written to `Download/Fyleon` (never executed). Tapping a received APK goes through the normal Android installer.
+
+## Apps screen (session 8)
+- Reads the list of installed apps through a launcher `<queries>` intent (no QUERY_ALL_PACKAGES by default).
+- PACKAGE_USAGE_STATS is not granted by a dialog: the user switches "Usage access" on in Android settings; it gives sizes, cache and last-used only.
+- Fyleon cannot and does not clear other apps' data silently; every cache clean-up goes through Android's own pages / dialog.
+
 ## Local preview server
 `features/preview/local_server.dart` binds to 127.0.0.1 only (not reachable from the network), serves only files inside the
 project folder (path traversal blocked), random port, stopped when the preview closes. Android allows plain HTTP for
@@ -39,7 +55,7 @@ Optional runtime permission (Settings > Special app access). The manifest permis
 rejected, set the flag to false and Fyleon falls back to the file picker.
 
 ## Permissions (Android)
-INTERNET, ACCESS_NETWORK_STATE, AD_ID (ads). Optional (only if `allFilesAccess=true`): MANAGE_EXTERNAL_STORAGE,
+INTERNET, ACCESS_NETWORK_STATE, AD_ID (ads). Session 8: ACCESS_WIFI_STATE + CHANGE_WIFI_MULTICAST_STATE (Dash discovery), WAKE_LOCK + FOREGROUND_SERVICE + FOREGROUND_SERVICE_MEDIA_PLAYBACK + POST_NOTIFICATIONS (background audio), REQUEST_DELETE_PACKAGES (uninstall), PACKAGE_USAGE_STATS (app sizes), CAMERA via the QR scanner plugin (camera hardware not required). Optional: QUERY_ALL_PACKAGES (`features.queryAllPackages`). Optional (only if `allFilesAccess=true`): MANAGE_EXTERNAL_STORAGE,
 READ_EXTERNAL_STORAGE (<= Android 12). Play restricts all-files access; a declaration form is required.
 
 ## Supply chain

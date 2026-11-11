@@ -1,6 +1,6 @@
 # HANDOVER (read this first in every new chat)
 
-Last updated: 2026-11-02, end of session 2 (first CI fixes).
+Last updated: 2026-11-10, end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
 
 ## Rules for the next session
 1. Read this file, then ROADMAP.md. Continue from "Next steps". Do NOT restart or re-plan.
@@ -153,7 +153,83 @@ Owner feedback and what was done:
 
 - Build #36: analyzer error `editor_screen.dart:285` ('num' cannot be assigned to 'int' in _jumpToLine) -> fixed with plain int math. Only 1 real error; the rest were lint infos.
 
+## Session 8 (owner feedback round of 2026-11-10; code written, NOT compiled - run CI first!)
+Owner screenshots/video: (1) Fyleon dock + banner hide behind the Android nav buttons, (2) wants "See all" on Recent,
+(3) swipe between neighbouring pictures, (4) top bar + bottom pill in viewers like Google Files, customisable,
+(5) PDF/PPTX: all pages in one scroll with a "3/52" page pill, (6) Apps screen (video), cache sizes + clear cache,
+(7) audio + video in the background, (8) file sharing (Wi-Fi/hotspot/QR/code, many devices), (9) ideas from other file managers.
+Done:
+- **Dock fix**: `home_screen.dart` bottomNavigationBar is wrapped in `SafeArea(top:false)` (cause: Android 15 edge-to-edge).
+  Same SafeArea + `BannerAdWidget` on the new Apps and Dash screens.
+- **Recent > See all**: `recent_all_screen.dart`; `storage_scan.dart` now also returns `recentAll` (300 newest).
+- **Image viewer rewrite** (`image_viewer.dart`): PageView over the pictures of the same folder (sorted like the owner's Sort),
+  pinch/double-tap zoom (paging is locked while zoomed), tap hides bars, gradient top bar (back, name, "3 of 52"),
+  floating gradient pill at the bottom. `file_neighbors.dart` = sibling loading + prev/next for other viewers.
+- **Customisable viewer toolbar**: `viewer_prefs.dart` (pure logic, tested) + `viewer_chrome.dart` (`ViewerActions` for the top bar,
+  `ViewerPill`, shared `runViewerAction`) + Settings > "Viewer toolbar" (`settings/viewer_toolbar_screen.dart`): for every action
+  (Star, Favorite/heart, Share, Edit, Details, Open with, Previous/Next file) choose Top bar / Menu / Bottom pill / Hidden + how many
+  icons fit on the top bar. Used in image, PDF, PPTX, Word/Excel, text/code and media viewers. NOT yet in EPUB and archive viewers.
+- **Photo editor** (`image_editor_screen.dart`, `image` package, runs in isolates): crop presets + zoom + move, rotate, flip/mirror,
+  6 filters, brightness/contrast/colour; save as copy or replace (JPG/PNG). Pure math `cropRect()` + `applyEdits()` are unit tested.
+  NOT done: free-hand crop handles, text/stickers, HEIC/GIF editing, the "lens" (search from image) button of Google Files.
+- **PDF**: `PageIndicatorPill` ("3/52", up/down buttons, tap the number to jump) over the continuous pdfrx view.
+- **PPTX**: default is now ALL slides one below the other (fixed item extent) + the same pill; toggle button = slide show.
+- **Apps screen** (`features/apps/`): tabs Installed / System / Install files (APKs), chips Large (>=100 MB), Unused (30+ days, needs
+  Usage access), Games; sort (size, name, last used, cache); search; multi-select with selected cache + size totals; per-app sheet
+  (open, App info, clear cache, Save APK backup to Download/Fyleon/Apps, Share APK, Uninstall).
+  Native part in `tool/templates/MainActivity.kt`: `listApps`, `appIcon`, `appStats` (StorageStatsManager, needs the user to allow
+  "Usage access"), `openAppInfo`, `uninstallApp`, `launchApp`, `extractApk`, `clearAllCache`.
+  **HONEST: Android does not let any normal app clear OTHER apps' cache silently.** What we do instead:
+  (a) "Clear cache" menu: Selected apps / All my apps (no system apps) / All apps with system apps = guided queue
+  (`app_queue_screen.dart`): opens each app's Android info page, owner taps Storage > Clear cache, Back; Fyleon re-measures,
+  shows freed space and opens the next app; (b) "All at once (Android dialog)" = `StorageManager.ACTION_CLEAR_APP_CACHE`
+  (Android 11+, needs All files access) - clears only EXTERNAL cache folders of all apps (not internal cache), confirmed by the system dialog;
+  (c) Fyleon's own cache (real, instant). Without Usage access sizes are APK-size only and no cache sizes are shown.
+  The app list uses a `<queries>` launcher intent (no QUERY_ALL_PACKAGES); set `"features": {"queryAllPackages": true}` in the
+  config to also add that Play-restricted permission (needs a Play declaration; file managers are an allowed use case).
+- **Background audio/video**: `just_audio` + `just_audio_background` (`audio_engine.dart`; MainActivity now extends
+  `AudioServiceActivity`; manifest service/receiver + FOREGROUND_SERVICE(_MEDIA_PLAYBACK), WAKE_LOCK, POST_NOTIFICATIONS are added by
+  `patch_android.py`). Audio files play through it (notification + lock-screen controls). Video: button "Audio only" hands the sound to
+  the audio engine; and when the app is left (lifecycle inactive/paused) a playing video is handed over automatically and taken back
+  on return. Switch in Settings > Media. `main()` calls `AudioEngine.initBackground()` inside try/catch (a failure never blocks startup).
+  UNTESTED on a phone: Android 12+ may refuse to START the foreground service after the app is already in the background; the manual
+  "Audio only" button is the reliable path.
+- **Fyleon Dash** (name of the file sharing feature, constant `dashName` in `dash_state.dart`) - `features/dash/`:
+  Wi-Fi / hotspot transfer, no internet needed. Sender = TCP server + UDP broadcast beacon (port 41414); receivers see nearby
+  senders, OR scan the QR code (`fyleon://dash?h=ips&p=port&c=code&n=name`), OR type the 5-7 digit code (found through the code hash in
+  the beacon). QR/code = auto-accept, picking from the list = sender taps Accept. Many receivers at once; progress per receiver on the
+  sender, speed + per-file progress on the receiver, files saved to Download/Fyleon. Own protocol over plain TCP sockets
+  (not HTTP, because Android blocks cleartext HTTP to unknown hosts). Wrong-code rate limit, safe file names, flush-before-close.
+  Ads: banner on every Dash screen + native ad after every 3 files (remote key `ads.dashNativeEvery`, default 3).
+  Entry points: Files home card, Settings > Tools, file menu "Send with Dash". `test/session8_test.dart` has a LOOPBACK transfer test.
+  NOT done (honest): Bluetooth / Wi-Fi Direct / Nearby Connections for "no common network" (see next steps), encryption (data is plain TCP;
+  SECURITY.md), resume of broken downloads, multi-select picker inside Dash (single picker + Recent/Starred/Newest lists instead:
+  file_picker 13 multi-select API was not verified), iOS discovery untested.
+- New deps: image (was transitive), just_audio, just_audio_background, qr_flutter, mobile_scanner. `pubspec.lock` will change on CI.
+- `patch_android.py`: new permissions (ACCESS_WIFI_STATE, CHANGE_WIFI_MULTICAST_STATE, WAKE_LOCK, FOREGROUND_SERVICE*, POST_NOTIFICATIONS,
+  REQUEST_DELETE_PACKAGES, PACKAGE_USAGE_STATS with tools:ignore), camera features required=false, launcher `<queries>`, audio service.
+  Tested on the real android/ folder twice (idempotent, XML well-formed).
+- Tests: `test/session8_test.dart` (toolbar layout, crop math, rotate/crop with the image package, apps filter, Dash helpers, loopback
+  transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
+- Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
+
 ## Next steps (in order)
+1. Owner uploads the ZIP -> run "Android Build". Expect compile errors in the new code (never compiled). Likely suspects:
+   `just_audio_background` / `mobile_scanner` Gradle or version problems, `pdfrx` PdfViewerParams.onPageChanged signature,
+   `image` package call signatures, `MediaItem` export. Send the failing log; also run "Android Smoke Test" (app must still start).
+2. Device test list: dock above nav buttons; Recent > See all; swipe pictures; Settings > Viewer toolbar changes the bars; photo editor;
+   PDF "3/52" pill; PPTX all-slides; Apps (allow Usage access, sizes, selected cache total, guided clear, "all at once" dialog);
+   audio in background + notification; video "Audio only" + leave app; Dash between two phones on the same Wi-Fi and on a hotspot
+   (QR, code, list, 2+ receivers); ads on Dash/Apps screens.
+3. Dash phase 2: Nearby Connections (Google Play services, Bluetooth + Wi-Fi Direct, works with NO common network, Android only),
+   key-based encryption (key inside the QR), resume, iOS/desktop checks, Wi-Fi QR for LocalOnlyHotspot.
+4. Viewer toolbar for EPUB + archive viewers; lens/OCR button (ML Kit) for images; free-hand crop.
+5. More ideas from other file managers: pinned folders/bookmarks, duplicate finder, large-files cleaner, colour tags, dual pane /
+   tabs on tablets and desktop, Quick-Look-style preview (long-press), compress to ZIP, multi-select everywhere.
+6. Older list: Real AdMob ids (owner), privacy policy, Firebase Remote Config, Play internal testing, AI Vault, Drive backup, create
+   PDF/DOCX/XLSX/PPTX/EPUB, git in the editor.
+
+## Older next steps (kept for history)
 0. (Session 4) Upload ZIP -> Android Build. Expect possible compile errors in the new code (editor, preview, EPUB paginator,
    PPTX parser, file manager); fix from the log. Then device test: file manager (create/rename/copy/move/delete), editor,
    web preview (Phone/Tablet/Desktop), EPUB page flip, PPTX rendering. Report what looks wrong with screenshots/video.
@@ -179,6 +255,8 @@ Owner feedback and what was done:
 - Browse tab / all-files permission is OFF by default (Play policy).
 
 ## Known limitations / bugs
+- (Session 8) Nothing of session 8 was compiled or run. Dash data is not encrypted. Cache of other apps cannot be cleared silently (Android rule).
+- (Session 8) App sizes/cache/last-used need the owner to allow Usage access; without it only APK sizes are shown.
 - Picked files are cache copies on Android (picker); recents may vanish if the OS clears cache.
 - Office viewer is text/table only; legacy .doc/.xls/.ppt and OpenDocument not supported.
 - Archive listing: ZIP/JAR/APK/AAB/TAR/TGZ only (RAR/7z not yet). Max 200 MB.

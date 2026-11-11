@@ -44,6 +44,31 @@ Legend: [x] done in code (untested on device) | [ ] planned
 - [x] Sample files generator, floating dock + responsive rail, storage ring hero, new transitions
 - [ ] Git (clone/commit/push), multi-file tabs, terminal, installed-apps list, multi-select, compress to ZIP, create PDF/DOCX/XLSX/PPTX/EPUB
 
+## Session 8 (code written, awaiting first compile + device test)
+- [x] Dock + banner above the Android navigation buttons; Recent "See all"
+- [x] Image viewer: swipe to neighbouring pictures, zoom, hide bars, photo editor (crop, rotate, flip, filters, adjust)
+- [x] Viewer toolbar customisable in Settings (star, heart, share, edit, details, open with, previous/next: top bar / menu / pill / hidden)
+- [x] PDF and PowerPoint: all pages in one scroll with "3/52" page pill
+- [x] Apps screen: installed / system / APK files, large / unused / games, sizes, cache sizes, guided cache clearing, uninstall, APK backup/share
+- [x] Background audio + video sound (notification controls), "Audio only" mode for videos, Settings switch
+- [x] Fyleon Dash: send/receive over Wi-Fi or hotspot, QR code, 5-7 digit code, nearby list, many receivers, progress, ads between files
+- [ ] Dash: Bluetooth / Wi-Fi Direct (Nearby Connections), encryption, resume, desktop tests
+- [ ] Viewer toolbar in EPUB/archive viewers, image lens/OCR, free-hand crop, multi-select picker in Dash
+
+## Ideas taken from other file managers
+(From general knowledge of Google Files, Xiaomi/MIUI, Samsung My Files, Oppo/Realme (ColorOS), iOS Files, Windows Explorer,
+macOS Finder, Linux file managers. Own UI and names; nothing copied.)
+| Seen in | Idea | Status in Fyleon |
+|---|---|---|
+| Google Files | Recent "See all", Apps screen with Large/Unused/Games, quick image actions, swipe between pictures | done (session 8) |
+| Google / Samsung | Quick Share style nearby sending | done as Fyleon Dash (Wi-Fi/hotspot), Nearby later |
+| Xiaomi, Oppo, Realme | Cleaner (cache, junk, large files), app manager | cache sizes + guided clear done; large-file/duplicate cleaner planned |
+| Samsung My Files | Storage analysis, APK backup of installed apps | APK backup done; storage analysis planned |
+| Windows Explorer | Quick access / pinned folders, tabs, dual pane, details pane | pinned folders + tabs/dual pane planned (tablet/desktop) |
+| macOS Finder | Colour tags, Quick Look preview, column view | tags + long-press preview planned |
+| iOS Files | Recents/Shared/Tags, "On My iPhone" structure | Recent tab exists; tags planned |
+| Linux (Nautilus, Dolphin) | Bookmarks sidebar, split view, bulk rename | planned (bulk rename, split view) |
+
 ## Benchmarks to beat (later phases)
 - EPUB: Kindle - highlights, notes, bookmarks, dictionary/translate, X-ray style info, fonts, themes, brightness, reading progress/stats, cloud-free sync through the user's Drive.
 - Office: Microsoft Word/Excel/PowerPoint - full layout, styles, tables, charts, tracked changes, formulas, slide show; plus extras (AI assist via AI Vault).

@@ -204,12 +204,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                     label: const Text('New'),
                   )
                 : null,
-        bottomNavigationBar: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BannerAdWidget(),
-            if (!wide) FloatingDock(index: tab, items: _dockItems, onChanged: _setTab),
-          ],
+        // SafeArea: on Android 15+ the app draws under the system bars; without this the dock
+        // and the banner hide behind the navigation buttons.
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const BannerAdWidget(),
+              if (!wide) FloatingDock(index: tab, items: _dockItems, onChanged: _setTab),
+            ],
+          ),
         ),
       ),
     );

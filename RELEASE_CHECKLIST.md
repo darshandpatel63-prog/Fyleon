@@ -31,6 +31,10 @@ set it to true, run "Android Smoke Test"; if the app starts, keep it (smaller, o
 - Intent filters for VIEW/SEND with any MIME type are allowed for file managers/viewers.
 - If an installed-apps list is added later: QUERY_ALL_PACKAGES needs its own declaration (or use a narrower approach).
 - REQUEST_INSTALL_PACKAGES (install APK from the file manager): declaration + short video.
+- PACKAGE_USAGE_STATS ("Usage access") is a special permission the user turns on; explain in the listing that it is used only for app sizes.
+- FOREGROUND_SERVICE_MEDIA_PLAYBACK: declare "media playback" use (background audio/video sound).
+- Camera (QR scanner) and local network use (Dash) belong in the privacy policy / Data safety text (nothing is uploaded).
+- QUERY_ALL_PACKAGES stays OFF unless the owner wants the full system-app list (file managers may declare it).
 - Data safety: no data leaves the device except AdMob (ads) and optional Google Drive backup (later).
 
 ## D. Each release

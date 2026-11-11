@@ -19,5 +19,12 @@
 - Empty states: icon + one sentence + one action.
 - Settings: grouped sections with uppercase labels; "Coming soon" items show a snackbar.
 
+## Session 8 patterns
+- Bottom bars (dock, banner, selection bars) always sit inside `SafeArea(top:false)` so Android navigation buttons never cover them.
+- Viewers: overlay top bar (gradient) + optional floating pill; owner-configurable (Settings > Viewer toolbar). One tap hides the bars.
+- Paged documents (PDF, PowerPoint): one continuous scroll + "3/52" pill with up/down buttons (tap the number to jump).
+- Apps screen: pill tabs, filter chips, long-press = multi-select with a bottom summary (cache + size) and actions.
+- Dash: animated radar rings while searching, gradient Send / Receive cards, QR + big spaced code on the sender, avatars for devices.
+
 ## Accessibility
 Tooltips on icon buttons, text scaling respected, contrast from Material color schemes. Review before release.

@@ -16,6 +16,7 @@ class RemoteSettings {
     this.nativeEnabled = true,
     this.nativeEveryNItems = 4,
     this.nativeMaxPerList = 6,
+    this.dashNativeEveryNItems = 3,
     this.interstitialEveryNFileCloses = 4,
     this.interstitialMinGapSeconds = 180,
     this.premiumThemeUnlockHours = 24,
@@ -27,6 +28,9 @@ class RemoteSettings {
   final bool nativeEnabled;
   final int nativeEveryNItems;
   final int nativeMaxPerList;
+
+  /// Dash (file sharing) screens: a native ad after every N files.
+  final int dashNativeEveryNItems;
   final int interstitialEveryNFileCloses;
   final int interstitialMinGapSeconds;
   final int premiumThemeUnlockHours;
@@ -44,6 +48,7 @@ class RemoteSettings {
       nativeEnabled: b(ads['native'], true),
       nativeEveryNItems: i(ads['nativeEvery'], 4, 3),
       nativeMaxPerList: i(ads['nativeMax'], 6, 1),
+      dashNativeEveryNItems: i(ads['dashNativeEvery'], 3, 2),
       interstitialEveryNFileCloses:
           i(ads['interstitialEveryNFileCloses'], 4, 2),
       interstitialMinGapSeconds: i(ads['interstitialMinGapSeconds'], 180, 60),
@@ -59,6 +64,7 @@ class RemoteSettings {
           'native': nativeEnabled,
           'nativeEvery': nativeEveryNItems,
           'nativeMax': nativeMaxPerList,
+          'dashNativeEvery': dashNativeEveryNItems,
           'interstitialEveryNFileCloses': interstitialEveryNFileCloses,
           'interstitialMinGapSeconds': interstitialMinGapSeconds,
         },

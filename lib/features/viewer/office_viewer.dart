@@ -5,6 +5,7 @@ import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 import '../files/domain/file_kind.dart';
 import 'office_parser.dart';
+import 'viewer_chrome.dart';
 
 /// Basic DOCX / XLSX / PPTX preview (text + tables). Formatting is not
 /// preserved yet; real Office-level viewing/editing is a later phase.
@@ -26,6 +27,7 @@ class _OfficeViewerScreenState extends State<OfficeViewerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [ViewerActions(item: widget.item)],
       ),
       body: FutureBuilder<OfficeResult>(
         future: _future,

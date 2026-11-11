@@ -7,6 +7,7 @@
 | Interstitial | after the user CLOSES a file | every 4th close, min 180 s gap (remote-configurable) |
 | Rewarded | unlock a premium theme for 24 h | only when the user taps "Watch ad" |
 | Native (small template) | after every 4 items in lists/grids, Files home, Settings | max 6 per list, hidden until loaded, labelled "Ad" by AdMob |
+| Banner + native (Dash, Apps) | bottom banner on Dash home/send/receive/transfer and on the Apps screen; native ad after every 3 files on Dash lists (remote `ads.dashNativeEvery`), after every N items on the Apps list | never blocks sending/receiving; hidden until loaded; no interstitial inside Dash |
 Other AdMob formats (app open, rewarded interstitial) come later, carefully capped.
 
 ## Safety rules (account protection)

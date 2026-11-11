@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../../core/native/native_bridge.dart';
 import '../../../core/utils/format.dart';
 import '../../../shared/widgets/animations.dart';
+import '../../dash/dash_screens.dart';
 import '../../editor/editor_screen.dart';
 import '../../preview/preview_screen.dart';
 import '../../viewer/archive_viewer.dart';
@@ -210,6 +211,16 @@ Future<void> showItemMenu(
                 onTap: () {
                   Navigator.pop(ctx);
                   openFromBrowse(context, ref, item);
+                },
+              ),
+            if (!item.isDir)
+              ListTile(
+                leading: const Icon(Icons.bolt_rounded),
+                title: const Text('Send with Dash'),
+                subtitle: const Text('To a nearby device, no internet needed'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  sendWithDash(context, [item.path]);
                 },
               ),
             if (item.kind == FileKind.apk)
@@ -429,6 +440,9 @@ void _detailsDialog(BuildContext context, FileItem item) {
     ),
   );
 }
+
+/// Details dialog (also used by the viewer toolbar).
+void showFileDetails(BuildContext context, FileItem item) => _detailsDialog(context, item);
 
 /// Paste whatever is in the clipboard into [dir].
 Future<void> pasteInto(BuildContext context, WidgetRef ref, String dir) async {

@@ -9,6 +9,11 @@ import '../files/application/browse_controller.dart';
 import '../ads/native_ad_tile.dart';
 import '../files/application/files_providers.dart';
 import '../files/data/file_ops.dart';
+import '../apps/apps_screen.dart';
+import '../dash/dash_screens.dart';
+import '../dash/dash_state.dart';
+import '../viewer/viewer_prefs.dart';
+import 'viewer_toolbar_screen.dart';
 import '../samples/sample_generator.dart';
 import 'themes_screen.dart';
 
@@ -38,7 +43,37 @@ class SettingsScreen extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => Navigator.of(context).push(fadeSlideRoute(const ThemesScreen())),
           ),
+          ListTile(
+            leading: Icon(Icons.tune_rounded, color: scheme.primary),
+            title: const Text('Viewer toolbar'),
+            subtitle: const Text('Choose which buttons show directly: star, heart, share, edit...'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(fadeSlideRoute(const ViewerToolbarScreen())),
+          ),
           const NativeAdTile(),
+          _section(context, 'Tools'),
+          ListTile(
+            leading: Icon(Icons.bolt_rounded, color: scheme.primary),
+            title: const Text(dashName),
+            subtitle: const Text('Send files to nearby devices, no internet needed'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(fadeSlideRoute(const DashHomeScreen())),
+          ),
+          ListTile(
+            leading: Icon(Icons.apps_rounded, color: scheme.primary),
+            title: const Text('Apps & cache'),
+            subtitle: const Text('App sizes, unused apps, clear cache'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(fadeSlideRoute(const AppsScreen())),
+          ),
+          _section(context, 'Media'),
+          SwitchListTile(
+            secondary: Icon(Icons.headphones_rounded, color: scheme.primary),
+            title: const Text('Keep playing in the background'),
+            subtitle: const Text('Audio and video sound continue when you leave the app or lock the screen'),
+            value: ref.watch(backgroundPlayProvider),
+            onChanged: (v) => ref.read(backgroundPlayProvider.notifier).set(v),
+          ),
           _section(context, 'Files'),
           ListTile(
             leading: Icon(Icons.folder_shared_rounded, color: scheme.primary),

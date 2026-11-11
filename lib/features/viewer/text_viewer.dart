@@ -15,6 +15,7 @@ import '../editor/editor_screen.dart';
 import '../files/domain/file_item.dart';
 import '../preview/preview_screen.dart';
 import '../files/domain/file_kind.dart';
+import 'viewer_chrome.dart';
 
 class _TextData {
   const _TextData(this.text, this.truncated, this.binary, this.totalBytes);
@@ -69,37 +70,38 @@ class _TextViewerScreenState extends State<TextViewerScreen> {
       appBar: AppBar(
         title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(
-            tooltip: 'Edit',
-            icon: const Icon(Icons.edit_rounded),
-            onPressed: () => Navigator.of(context).pushReplacement(
-              fadeSlideRoute(EditorScreen(path: item.path)),
-            ),
-          ),
-          if (const {'html', 'htm', 'svg', 'md', 'markdown'}.contains(item.ext))
-            IconButton(
-              tooltip: 'Preview',
-              icon: const Icon(Icons.play_circle_outline_rounded),
-              onPressed: () => Navigator.of(context).push(
-                fadeSlideRoute(PreviewScreen(path: item.path)),
+          ViewerActions(
+            item: item,
+            leading: [
+              if (const {'html', 'htm', 'svg', 'md', 'markdown'}.contains(item.ext))
+                IconButton(
+                  tooltip: 'Preview',
+                  icon: const Icon(Icons.play_circle_outline_rounded),
+                  onPressed: () => Navigator.of(context).push(
+                    fadeSlideRoute(PreviewScreen(path: item.path)),
+                  ),
+                ),
+              PopupMenuButton<String>(
+                tooltip: 'Text options',
+                icon: const Icon(Icons.text_fields_rounded),
+                onSelected: (v) {
+                  switch (v) {
+                    case 'smaller':
+                      setState(() => _fontSize = math.max(9, _fontSize - 1));
+                    case 'bigger':
+                      setState(() => _fontSize = math.min(30, _fontSize + 1));
+                    case 'wrap':
+                      setState(() => _wrap = !_wrap);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'smaller', child: Text('Smaller text')),
+                  const PopupMenuItem(value: 'bigger', child: Text('Bigger text')),
+                  if (!isCode) PopupMenuItem(value: 'wrap', child: Text(_wrap ? 'Word wrap: on' : 'Word wrap: off')),
+                ],
               ),
-            ),
-          IconButton(
-            tooltip: 'Smaller text',
-            icon: const Icon(Icons.text_decrease_rounded),
-            onPressed: () => setState(() => _fontSize = math.max(9, _fontSize - 1)),
+            ],
           ),
-          IconButton(
-            tooltip: 'Bigger text',
-            icon: const Icon(Icons.text_increase_rounded),
-            onPressed: () => setState(() => _fontSize = math.min(30, _fontSize + 1)),
-          ),
-          if (!isCode)
-            IconButton(
-              tooltip: 'Word wrap',
-              icon: Icon(_wrap ? Icons.wrap_text_rounded : Icons.notes_rounded),
-              onPressed: () => setState(() => _wrap = !_wrap),
-            ),
         ],
       ),
       body: FutureBuilder<_TextData>(

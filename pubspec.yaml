@@ -2,7 +2,7 @@ name: fyleon
 description: "Fyleon - open anything. Universal file viewer and editor."
 publish_to: "none"
 # version: <name>+<build>. The CI overrides the build number with the run number.
-version: 0.1.0+1
+version: 0.8.0+1
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -28,6 +28,12 @@ dependencies:
   video_player: ">=2.9.0 <3.0.0"
   path_provider: ">=2.1.4 <3.0.0"
   crypto: ">=3.0.3 <4.0.0"
+  # Session 8
+  image: ">=4.2.0 <5.0.0" # photo editor (was already a transitive dependency)
+  just_audio: ">=0.9.40 <1.0.0" # audio engine (also plays the sound of videos in the background)
+  just_audio_background: ">=0.0.1-beta.13 <1.0.0" # notification + lock screen controls
+  qr_flutter: ">=4.1.0 <5.0.0" # Dash: QR code of the sender
+  mobile_scanner: ">=6.0.2 <9.0.0" # Dash: scan the QR code
 
 dev_dependencies:
   flutter_test:

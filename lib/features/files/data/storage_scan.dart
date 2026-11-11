@@ -12,12 +12,16 @@ class ScanResult {
     required this.bytes,
     required this.downloadsBytes,
     required this.recent,
+    this.recentAll = const [],
   });
 
   final Map<FileCategory, List<FileItem>> byCategory;
   final Map<FileCategory, int> bytes;
   final int downloadsBytes;
   final List<FileItem> recent;
+
+  /// The newest files (more than [recent]) for the "See all" screen.
+  final List<FileItem> recentAll;
 
   int count(FileCategory c) => byCategory[c]?.length ?? 0;
 }
@@ -87,5 +91,6 @@ ScanResult scanStorage(String root) {
     bytes: bytes,
     downloadsBytes: downloads,
     recent: recentSource.take(14).toList(),
+    recentAll: recentSource.take(300).toList(),
   );
 }

@@ -30,7 +30,9 @@ Fyleon is not only a viewer. It is **a complete file manager + file creator + co
 - [ ] Device testing + bug fixes
 - [x] File manager basics (create/rename/copy/move/delete), code editor, web preview (code written, untested)
 - [x] EPUB pages + page-flip, PPTX slide renderer (code written, untested)
-- [ ] Open With Fyleon intent
+- [x] Open With Fyleon intent (session 6)
+- [x] Session 8: viewer toolbar, photo editor, Apps screen, background audio, Fyleon Dash (Wi-Fi/hotspot) - code written, to be compiled
+- [ ] Dash phase 2: Nearby Connections (Bluetooth + Wi-Fi Direct), encryption, resume
 - [ ] Real AdMob ids, privacy policy, Play listing
 - [ ] Play internal testing -> production
 

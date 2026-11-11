@@ -18,7 +18,12 @@
         viewer/                      one file per viewer + viewer_screen.dart (router)
                                      epub_* (parser, layout, paginator, flip_book, viewer), pptx_* (parser, viewer),
                                      office_* (docx/xlsx basic), archive, text, image, pdf
-        settings/                    settings, themes
+        settings/                    settings, themes, viewer toolbar settings
+        apps/                        installed apps (apps_model = pure filter/sort, providers, screen, guided queue screen)
+        dash/                        Fyleon Dash file sharing: dash_transport (protocol, sender, discovery, downloader; pure dart:io),
+                                     dash_state (identity, save folder), dash_screens (home, send), dash_receive_screens, dash_widgets
+        viewer/ (more)               viewer_prefs (toolbar settings, pure), viewer_chrome (top bar + pill widgets), file_neighbors,
+                                     image_editor_screen, audio_engine (just_audio + background), media_player_screen
     config/fyleon_config.json        owner-filled config (AdMob ids, flags, remote url)
     tool/                            make_icons.py, patch_android.py
     .github/workflows/android.yml    CI
@@ -36,6 +41,12 @@
 - AI Vault: `features/ai_vault/` + secure storage adapter (Keystore/Keychain) + provider adapters.
 - Backup: `features/backup/` (Google Drive appData scope, user's own account, encrypted).
 - Platforms: `flutter create --platforms=ios,windows,macos,linux .` then platform CI workflows.
+
+## Native bridge (Android)
+`tool/templates/MainActivity.kt` is copied over the generated MainActivity by `tool/patch_android.py` (also committed under
+android/). One MethodChannel `fyleon/native` (see `core/native/native_bridge.dart`): incoming files, storage info, APK install,
+share / open with, installed apps + sizes (Usage access), app info / uninstall, clear-all-cache dialog, hotspot / Wi-Fi settings,
+multicast lock. MainActivity extends `AudioServiceActivity` (needed for background audio).
 
 ## Remote changes
 `core/remote/remote_settings.dart` reads a GitHub-hosted JSON (URL in config). Firebase Remote Config will

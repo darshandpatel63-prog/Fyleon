@@ -14,8 +14,11 @@ import '../application/collections_providers.dart';
 import '../domain/file_category.dart';
 import '../domain/file_item.dart';
 import '../domain/file_kind.dart';
+import '../../apps/apps_screen.dart';
+import '../../dash/dash_screens.dart';
 import 'category_screen.dart';
 import 'collection_screen.dart';
+import 'recent_all_screen.dart';
 import 'file_manager_actions.dart';
 import 'safe_folder_screen.dart';
 import 'trash_screen.dart';
@@ -49,7 +52,9 @@ class FilesHome extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
         children: [
           if (internal != null) _StorageHero(path: internal, onTap: () => ref.read(browsePathProvider.notifier).open(internal)),
-          _title(context, 'Recent'),
+          const SizedBox(height: 12),
+          const _DashCard(),
+          _titleAction(context, 'Recent', 'See all', () => Navigator.of(context).push(fadeSlideRoute(const RecentAllScreen()))),
           SizedBox(
             height: 150,
             child: scan.when(
@@ -102,6 +107,15 @@ class FilesHome extends ConsumerWidget {
                 heroTag: 'cat-${c.name}',
                 onTap: () => Navigator.of(context).push(fadeSlideRoute(CategoryScreen(category: c))),
               ),
+            _BigCard(
+              index: tileIndex++,
+              icon: Icons.apps_rounded,
+              color: const Color(0xFF0F766E),
+              title: 'Apps',
+              subtitle: 'Sizes, cache, unused',
+              heroTag: 'cat-apps',
+              onTap: () => Navigator.of(context).push(fadeSlideRoute(const AppsScreen())),
+            ),
           ]),
           const NativeAdTile(),
           _title(context, 'Collections'),
@@ -152,6 +166,19 @@ class FilesHome extends ConsumerWidget {
     );
   }
 
+  Widget _titleAction(BuildContext context, String t, String action, VoidCallback onTap) => Padding(
+        padding: const EdgeInsets.fromLTRB(2, 14, 0, 2),
+        child: Row(
+          children: [
+            Expanded(child: Text(t, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800))),
+            TextButton(
+              onPressed: onTap,
+              child: Row(mainAxisSize: MainAxisSize.min, children: [Text(action), const Icon(Icons.chevron_right_rounded, size: 20)]),
+            ),
+          ],
+        ),
+      );
+
   Widget _title(BuildContext context, String t) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 20, 2, 10),
         child: Text(t, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
@@ -168,6 +195,55 @@ class FilesHome extends ConsumerWidget {
         childAspectRatio: 2.15,
       ),
       children: children,
+    );
+  }
+}
+
+// ---------------------------------------------------------------- Dash entry
+
+class _DashCard extends StatelessWidget {
+  const _DashCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return FadeSlideIn(
+      index: 1,
+      child: Material(
+        borderRadius: BorderRadius.circular(24),
+        clipBehavior: Clip.antiAlias,
+        color: scheme.surfaceContainerHigh,
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(fadeSlideRoute(const DashHomeScreen())),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    gradient: LinearGradient(colors: [scheme.primary, scheme.tertiary]),
+                  ),
+                  child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Fyleon Dash', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                      Text('Send files to nearby phones and PCs, no internet needed', style: TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

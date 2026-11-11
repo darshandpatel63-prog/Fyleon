@@ -6,3 +6,5 @@
 -keep class androidx.work.** { *; }
 -dontwarn androidx.room.**
 -dontwarn androidx.work.**
+# background audio (just_audio_background / audio_service)
+-keep class com.ryanheise.** { *; }

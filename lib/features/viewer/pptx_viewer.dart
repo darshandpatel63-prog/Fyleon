@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/widgets/bottom_safe.dart';
+import '../../shared/widgets/page_indicator_pill.dart';
 import '../files/domain/file_item.dart';
 import 'pptx_parser.dart';
+import 'viewer_chrome.dart';
 
 /// PowerPoint viewer: draws every slide with its shapes, colors, text and pictures.
 /// (Approximate: animations, charts, SmartArt and some fonts/effects are not shown.)
@@ -21,13 +23,36 @@ class PptxViewerScreen extends StatefulWidget {
 class _PptxViewerScreenState extends State<PptxViewerScreen> {
   late final Future<PptxDeck> _future = compute(parsePptx, widget.item.path);
   final _controller = PageController();
+  final _scroll = ScrollController();
   int _page = 0;
-  bool _grid = false;
+
+  /// true = all slides one below the other (default, like a PDF); false = one slide at a time.
+  bool _grid = true;
+  double _extent = 300;
+  int _count = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      if (!_grid || !_scroll.hasClients) return;
+      final i = ((_scroll.offset + _extent * 0.3) / _extent).floor().clamp(0, _count - 1);
+      if (i != _page && mounted) setState(() => _page = i);
+    });
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _scroll.dispose();
     super.dispose();
+  }
+
+  void _goTo(int slide) {
+    final i = slide.clamp(1, _count) - 1;
+    if (_scroll.hasClients) {
+      _scroll.animateTo(i * _extent, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+    }
   }
 
   @override
@@ -36,10 +61,15 @@ class _PptxViewerScreenState extends State<PptxViewerScreen> {
       appBar: AppBar(
         title: Text(widget.item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(
-            tooltip: _grid ? 'Slide show' : 'All slides',
-            icon: Icon(_grid ? Icons.slideshow_rounded : Icons.view_agenda_rounded),
-            onPressed: () => setState(() => _grid = !_grid),
+          ViewerActions(
+            item: widget.item,
+            leading: [
+              IconButton(
+                tooltip: _grid ? 'One slide at a time' : 'All slides',
+                icon: Icon(_grid ? Icons.slideshow_rounded : Icons.view_agenda_rounded),
+                onPressed: () => setState(() => _grid = !_grid),
+              ),
+            ],
           ),
         ],
       ),
@@ -59,7 +89,23 @@ class _PptxViewerScreenState extends State<PptxViewerScreen> {
             );
           }
           final deck = snap.data!;
-          return _grid ? _list(deck) : _show(deck);
+          _count = deck.slides.length;
+          if (!_grid) return _show(deck);
+          return Stack(
+            children: [
+              _list(deck),
+              BottomRightOverlay(
+                addInset: true,
+                child: PageIndicatorPill(
+                  current: _page + 1,
+                  total: _count,
+                  onPrev: () => _goTo(_page),
+                  onNext: () => _goTo(_page + 2),
+                  onJump: _goTo,
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -91,20 +137,44 @@ class _PptxViewerScreenState extends State<PptxViewerScreen> {
   }
 
   Widget _list(PptxDeck deck) {
+    final width = MediaQuery.sizeOf(context).width;
+    final column = math.min(width, 900.0);
+    final slideW = column - 24;
+    final slideH = slideW * deck.cy / deck.cx;
+    const labelH = 20.0;
+    const gap = 14.0;
+    _extent = labelH + slideH + gap;
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(12, 4, 12, 40 + bottomInset(context)),
+      controller: _scroll,
+      padding: EdgeInsets.fromLTRB(0, 4, 0, 90 + bottomInset(context)),
+      itemExtent: _extent,
       itemCount: deck.slides.length,
-      itemBuilder: (context, i) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4, left: 2),
-              child: Text('Slide ${i + 1}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700, fontSize: 12)),
+      itemBuilder: (context, i) => Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          width: column,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, gap),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: labelH,
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 2, bottom: 3),
+                      child: Text(
+                        'Slide ${i + 1}',
+                        style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                PptxSlideView(deck: deck, slide: deck.slides[i]),
+              ],
             ),
-            PptxSlideView(deck: deck, slide: deck.slides[i]),
-          ],
+          ),
         ),
       ),
     );

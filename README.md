@@ -5,7 +5,8 @@ Package: `com.fyleon.app`. Phase 1 target: Android.
 
 ## What works now (Phase 1)
 PDF, EPUB, text and code (syntax highlight), images, ZIP/JAR/APK/AAB/TAR listing, basic DOCX/XLSX/PPTX,
-list + grid view, sort, filter, search, themes, AdMob (test ads).
+list + grid view, sort, filter, search, themes, AdMob (test ads), file manager + code editor, Apps screen with cache sizes,
+background audio, photo editor and Fyleon Dash (send files to nearby devices over Wi-Fi / hotspot).
 
 ## Build with GitHub (no local setup)
 1. Create a GitHub repo and upload everything from this ZIP (keep the `.github` folder).

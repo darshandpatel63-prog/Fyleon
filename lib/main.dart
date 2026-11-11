@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/storage/prefs.dart';
+import 'features/viewer/audio_engine.dart';
 
 void main() {
   // Any startup problem must show a message instead of silently closing the app.
@@ -24,6 +25,8 @@ void main() {
         // PDF viewing may fail later, but the rest of the app must still start.
         debugPrint('pdfrx init failed: $e');
       }
+      // background audio (notification controls); failure must never stop the app from starting
+      await AudioEngine.initBackground();
       final prefs = await SharedPreferences.getInstance();
       final config = await AppConfig.load();
       runApp(
