@@ -9,6 +9,7 @@ import '../files/application/browse_controller.dart';
 import '../ads/native_ad_tile.dart';
 import '../files/application/files_providers.dart';
 import '../files/data/file_ops.dart';
+import '../../core/config/app_config.dart';
 import '../apps/apps_screen.dart';
 import '../dash/dash_screens.dart';
 import '../dash/dash_state.dart';
@@ -137,7 +138,7 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.info_outline_rounded),
             title: const Text('About Fyleon'),
-            subtitle: const Text('Version ${AppConstants.version}'),
+            subtitle: Text('Version ${AppConstants.version}  -  ${ref.watch(appConfigProvider).useTestAds ? 'TEST ads (safe to click)' : 'LIVE ads (do not click your own ads)'}'),
             onTap: () => showAboutDialog(
               context: context,
               applicationName: AppConstants.appName,

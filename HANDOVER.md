@@ -213,7 +213,26 @@ Done:
   transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
 - Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
 
+## Session 9 (owner: store submission prep - ads + build variants)
+- Real AdMob ids (owner gave them) are now in `config/fyleon_config.json` (android: appId, banner, interstitial, rewarded, native,
+  rewardedInterstitial, appOpen). The last two are stored for later; the app does not show those formats yet.
+  Package name: `com.fyleon.app`. Ad unit ids are NOT secrets.
+- **Build decides the ads** (`AppConfig.adsMode` via `--dart-define=FYLEON_ADS=live|test`, plus `FYLEON_ADS` env for `tool/patch_android.py`
+  which sets the AdMob app id in the manifest): release = REAL ads (config `useTestAds` ignored), debug = TEST ads. Settings > About shows which.
+  `AppConfig.fromJson` is pure + tested (`test/ads_mode_test.dart`, also checks the config file really has real ids).
+- `.github/workflows/android.yml`: Run workflow asks **build_variant = release | debug** (+ draft_release).
+  release = real ads, signed APK + AAB (`Fyleon-<v>-b<N>-release.apk/.aab`); fails if real ids are missing/test ids, or if the signing secrets
+  are missing (never signs a real-ads app with the debug key). debug = `flutter build apk --debug` with test ads, one APK, no AAB, marked pre-release.
+  Both variants are NOT built together (would double the time). Branch pushes no longer build by themselves; a `v*` tag builds a release.
+  Secrets used (already set by the owner): ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD.
+- `import-zip.yml` no longer starts a build automatically (the owner chooses release/debug). Workflow files in a ZIP are only imported when the
+  secret PUSH_TOKEN exists, otherwise paste `.github/workflows/android.yml` and `import-zip.yml` by hand once.
+- Not verified here: the workflow itself ran nowhere (YAML parsed + patch script tested in both modes only); session 8 code is still uncompiled.
+- Honest notes for the owner: Fire tablets without Google Play services show no AdMob ads; never click own LIVE ads; AdMob needs the Amazon store link
+  after approval (RELEASE_CHECKLIST B3).
+
 ## Next steps (in order)
+0. (Session 9) Run Android Build > debug first (checks that the session 8 code compiles, test ads), then release for the Amazon Appstore.
 1. Owner uploads the ZIP -> run "Android Build". Expect compile errors in the new code (never compiled). Likely suspects:
    `just_audio_background` / `mobile_scanner` Gradle or version problems, `pdfrx` PdfViewerParams.onPageChanged signature,
    `image` package call signatures, `MediaItem` export. Send the failing log; also run "Android Smoke Test" (app must still start).
@@ -242,7 +261,7 @@ Done:
 4. Owner decision pending: enable all-files access (`allFilesAccess: true`)? Needs Play Console declaration
    and strict review. Default stays OFF (picker only).
 5. Add "Open with Fyleon" (Android intent filter + native handoff) so files from other apps open in Fyleon.
-6. Real AdMob ids into `config/fyleon_config.json` (owner), set `useTestAds: false` only for the release build.
+6. (done in session 9) Real AdMob ids are in the config; the release build uses them.
 7. Firebase Remote Config (keep the GitHub JSON as fallback), then Play Store internal testing.
 
 ## Decisions made (do not re-ask)

@@ -17,8 +17,15 @@ Never commit the keystore. Never paste it in chat.
 Currently OFF (`build.shrinkCode=false` in config) because R8 broke WorkManager at startup. Before the store release:
 set it to true, run "Android Smoke Test"; if the app starts, keep it (smaller, obfuscated app). If not, leave it off.
 
+## B3. Amazon Appstore (first target)
+- Build: Actions > Android Build > Run workflow > **release** > take `Fyleon-<version>-b<N>-release.apk` from the draft release (Amazon takes APK; check Amazon's current rules if you want to send the AAB instead).
+- Package name `com.fyleon.app`. Each upload needs a higher build number: the workflow uses the run number, so it always grows.
+- Test first with the **debug** build on a phone (test ads), then release.
+- After approval: add the Amazon store link to the app in AdMob (App settings), so AdMob can verify it.
+
 ## C. Before Play Store
-- [ ] Real AdMob ids in `config/fyleon_config.json`; `useTestAds: false` (store build only)
+- [x] Real AdMob ids are in `config/fyleon_config.json` (session 9). The **release** build shows them automatically; the debug build shows test ads
+- [ ] Package name for the stores and AdMob: `com.fyleon.app`
 - [ ] AdMob consent message (GDPR) created; app-ads.txt if you have a website
 - [ ] Privacy policy URL; Data safety form (ads, no data collected by Fyleon itself); content rating
 - [ ] App name/trademark check; store listing text, icon 512, feature graphic 1024x500, screenshots

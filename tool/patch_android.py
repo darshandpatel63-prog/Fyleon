@@ -7,6 +7,7 @@
 No secrets are read or written here.
 """
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -62,7 +63,14 @@ def patch_manifest(cfg):
     text = MANIFEST.read_text("utf-8")
 
     admob = cfg.get("admob") or {}
-    use_test = admob.get("useTestAds", True) is not False
+    # The build workflow sets FYLEON_ADS=live (release) or test (debug). Without it the config file decides.
+    mode = os.environ.get("FYLEON_ADS", "auto").strip().lower()
+    if mode == "live":
+        use_test = False
+    elif mode == "test":
+        use_test = True
+    else:
+        use_test = admob.get("useTestAds", True) is not False
     app_id = ((admob.get("android") or {}).get("appId") or "").strip()
     if use_test or not app_id:
         app_id = TEST_APP_ID
@@ -94,7 +102,7 @@ def patch_manifest(cfg):
         text = re.sub(r"(<application\b[^>]*>)", lambda m: m.group(1) + meta, text, count=1)
 
     MANIFEST.write_text(text, "utf-8")
-    print(f"manifest ok (test ads: {use_test or app_id == TEST_APP_ID}, allFilesAccess: {all_files})")
+    print(f"manifest ok (ads mode: {mode}, test ads: {use_test or app_id == TEST_APP_ID}, AdMob app id: {app_id}, allFilesAccess: {all_files})")
 
 
 def patch_gradle():

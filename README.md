@@ -12,7 +12,7 @@ background audio, photo editor and Fyleon Dash (send files to nearby devices ove
 1. Create a GitHub repo and upload everything from this ZIP (keep the `.github` folder).
    Tip: if the hidden `.github` folder does not upload from your phone, create the file
    `.github/workflows/android.yml` on github.com ("Add file > Create new file") and paste its content.
-2. Open the repo: Actions > "Android Build" > Run workflow.
+2. Open the repo: Actions > "Android Build" > Run workflow, then choose **release** (real ads, signed APK + AAB) or **debug** (test ads, one quick APK).
 3. First run creates `android/` and commits it back to the branch. Later runs reuse it.
 4. When finished: download the APK/AAB from the run's Artifacts, or from the DRAFT release.
 
