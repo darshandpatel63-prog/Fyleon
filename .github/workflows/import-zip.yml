@@ -108,9 +108,8 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      # Optional: start the Android build right after a successful import.
-      - name: Start Android build (if the workflow exists)
-        if: steps.commit.outputs.committed == 'true' && hashFiles('.github/workflows/android.yml') != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run android.yml --ref main -f draft_release=true || echo "Could not start the Android build automatically; start it from the Actions tab."
+      # The Android build is NOT started automatically any more: you choose release or debug yourself.
+      # Actions > Android Build > Run workflow.
+      - name: Reminder
+        if: steps.commit.outputs.committed == 'true'
+        run: echo "Import done. Now run Actions > Android Build and choose release or debug." >> "$GITHUB_STEP_SUMMARY"
