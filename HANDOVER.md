@@ -213,6 +213,13 @@ Done:
   transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
 - Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
 
+## Session 10 (docs only, no code changed)
+- Owner supplied `Fyleon_All_File_Formats.md` (26 categories) and `Fyleon_Feature_Specs.zip` (8 specs: master, video, image, music, file manager/archive, PDF/Office/eBook, code/data/3D, roadmap/QA).
+- Two new docs for the repo root: **`FORMATS_BLUEPRINT.md`** (read levels R0-R4, three tiers, on-demand **Format Packs** system + Settings page design, store-policy limits, category-by-category plan, build steps F0-F6) and **`FULL_FEATURE_PLAN.md`** (all features + UI wireframes per module, phases P0-P6, next work order).
+- Key decision recorded: packs are kind D (data), W (sandboxed WASM, bytes in/out) or N (native). Native/dex code must NOT be downloaded on Google Play; pack downloads need a PUBLIC repo/release location (no tokens in the app); check Amazon's rule too.
+- Owner state: v0.8.0 APK (session 8) is installed and running; Usage access toggle was "restricted setting" (APK installed outside a store): App info > menu > Allow restricted settings.
+- **NEXT (owner request): Video player v1, then Gallery v1** (see FULL_FEATURE_PLAN.md 5.3 and 5.4), then Format Packs F0-F3, Music v1.
+
 ## Session 9 (owner: store submission prep - ads + build variants)
 - Real AdMob ids (owner gave them) are now in `config/fyleon_config.json` (android: appId, banner, interstitial, rewarded, native,
   rewardedInterstitial, appOpen). The last two are stored for later; the app does not show those formats yet.
@@ -232,6 +239,7 @@ Done:
   after approval (RELEASE_CHECKLIST B3).
 
 ## Next steps (in order)
+0. (Session 10) Start Video player v1 + Gallery v1 per FULL_FEATURE_PLAN.md; then F0-F3 of FORMATS_BLUEPRINT.md.
 0. (Session 9) Run Android Build > debug first (checks that the session 8 code compiles, test ads), then release for the Amazon Appstore.
 1. Owner uploads the ZIP -> run "Android Build". Expect compile errors in the new code (never compiled). Likely suspects:
    `just_audio_background` / `mobile_scanner` Gradle or version problems, `pdfrx` PdfViewerParams.onPageChanged signature,
