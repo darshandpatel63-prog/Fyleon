@@ -94,6 +94,7 @@ class VideoSettingsScreen extends ConsumerWidget {
           ListTile(title: Text('Height from the bottom: ${s.subBottom}')),
           Slider(value: s.subBottom.toDouble(), min: 0, max: 200, onChanged: (v) => n.update((x) => x.copyWith(subBottom: v.round()))),
           section('DATA ON THIS PHONE'),
+          sw('Show pictures of the videos in the library', s.thumbnails, (x, v) => x.copyWith(thumbnails: v), sub: 'Made one at a time by Android and never while a video plays. Turn off if the phone is slow.'),
           const _ThumbTile(),
           ListTile(
             leading: const Icon(Icons.history_rounded),

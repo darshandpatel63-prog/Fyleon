@@ -1,6 +1,6 @@
 # HANDOVER (read this first in every new chat)
 
-Last updated: 2026-11-12, end of session 11 (video player v1; sessions 9 and 10 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
+Last updated: 2026-11-15, end of session 12 (video player regression fix; sessions 11, 10, 9 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
 
 ## Rules for the next session
 1. Read this file, then ROADMAP.md. Continue from "Next steps". Do NOT restart or re-plan.
@@ -212,6 +212,29 @@ Done:
 - Tests: `test/session8_test.dart` (toolbar layout, crop math, rotate/crop with the image package, apps filter, Dash helpers, loopback
   transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
 - Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
+
+## Session 12: video player regression fix (owner screen recordings of the new vs the old app)
+Evidence (two recordings): the OLD app plays `screen-20260503-184423.mp4` fine; the NEW app (session 11) shows a black screen for 7+ seconds, no controls, the library thumbnail never appears
+and the duration badge only after ~15 s; the saved resume bar shows the video position still moved (~4 s) = it was playing but the picture was black / the phone lagged. The old app never touched
+`MediaMetadataRetriever.getFrameAtTime` (hardware decode for thumbnails) and had no overlay over the picture.
+Most likely cause (NOT proven; no phone here): my new library thumbnails + info calls fought the phone's video decoder / media framework (also while the screen recorder uses an encoder), plus the new full-screen
+overlay and ClipRect/Transform around the video texture. Fixes (all code written, NOT compiled):
+- Native: thumbnails now ONE at a time on a low-priority thread; the system's own thumbnail first (`ContentResolver.loadThumbnail` through MediaStore, Android 10+), our own frame decode only as a last
+  resort in a separate thread with a 4 s limit, and no new decode is started while an earlier one is stuck. `videoInfo` has its own pool and no longer scans the frame count (fps now from the track).
+- Dart: thumbnail jobs wait while a player is open (`VideoThumbCache.paused`), 8 s timeout, failed ones are not retried in the session; setting "Show pictures of the videos in the library" (default on) to switch them off.
+- Player: nothing wraps the picture in the normal case (no ClipRect/Transform, like the old player); the controls are removed completely (no opacity layer) while hidden and cached with a RepaintBoundary;
+  the extra native calls (details, subtitles search) start 1.5 s AFTER the picture.
+- Honest diagnostics (v2 part that works on the current engine): decoder check per codec (`MediaCodecList`): banners "this phone has no decoder for H.265 / software decoding may lag / no sound: AC-3 not supported",
+  a stall watchdog (playing but the position does not move for 6 s -> card with Try again / Open with another app / Details), "Playback log" with Copy button in the details sheet, decoder names in the details.
+- Small v2 extras: sleep timer (15-90 min or after this video), previous/next frame (More menu).
+- NOT done (decision): the Media3 engine (audio-track + embedded subtitle choice, PiP, software decoder pack). Swapping the engine while a regression is being found would hide the cause; if the black screen / lag
+  remains after this build, the log + decoder lines tell us whether it is the engine (then Media3 is the answer) or the phone's decoder.
+- Tests: `test/video_test.dart` gets the thumbnail switch + decoder report test.
+
+## Next steps (session 12 view)
+1. Build debug, install, open the library (thumbnails should appear one by one or the system ones at once), play the 5.9 MB and the 19 MB videos and a big/HEVC file. If anything is black/laggy:
+   open Details (More menu > Video details) and send a screenshot of the decoder lines + the "Playback log".
+2. If it plays well: Gallery v1. If not: decide Media3 engine (needs the log first).
 
 ## Session 11: Video player v1 (code written, NOT compiled/run; the owner tests on the phone)
 Plan source: `FULL_FEATURE_PLAN.md` 5.3 (v1 on the existing `video_player` engine). New folder `lib/features/video/`:

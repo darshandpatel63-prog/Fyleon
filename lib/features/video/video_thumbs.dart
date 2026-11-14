@@ -19,9 +19,14 @@ class VideoThumbCache {
   /// Disk limit. The oldest thumbnails are deleted first.
   static const maxDiskBytes = 64 * 1024 * 1024;
 
+  /// true while a video is playing / opening: no thumbnail work starts then (it would fight the video decoder).
+  static bool paused = false;
+
   final LinkedHashMap<String, Uint8List> _mem = LinkedHashMap();
   final Map<String, Future<Uint8List?>> _pending = {};
+  final Set<String> _failed = {}; // asked once this session and the phone could not make one
   int _writesSinceTrim = 0;
+  Future<void> _tail = Future.value(); // thumbnails are made strictly one after the other
 
   String _key(FileItem f) => sha1.convert('${f.path}|${f.size}|${f.modified.millisecondsSinceEpoch}'.codeUnits).toString();
 
@@ -39,7 +44,22 @@ class VideoThumbCache {
       _mem[key] = cached; // most recently used goes last
       return Future.value(cached);
     }
-    return _pending[key] ??= _load(item, key, width).whenComplete(() => _pending.remove(key));
+    if (_failed.contains(key)) return Future.value(null);
+    return _pending[key] ??= _enqueue(() => _load(item, key, width)).whenComplete(() => _pending.remove(key));
+  }
+
+  Future<Uint8List?> _enqueue(Future<Uint8List?> Function() job) {
+    final run = _tail.then((_) async {
+      // wait while a video is open; never start decoding next to the player
+      var waited = 0;
+      while (paused && waited < 120000) {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+        waited += 400;
+      }
+      return job();
+    });
+    _tail = run.then((_) {}, onError: (Object _) {});
+    return run;
   }
 
   Future<Uint8List?> _load(FileItem item, String key, int width) async {
@@ -50,7 +70,8 @@ class VideoThumbCache {
       if (file.existsSync()) {
         bytes = await file.readAsBytes();
       } else {
-        bytes = await NativeBridge.instance.videoThumb(item.path, width: width);
+        bytes = await NativeBridge.instance.videoThumb(item.path, width: width).timeout(const Duration(seconds: 8), onTimeout: () => null);
+        if (bytes == null) _failed.add(key);
         if (bytes != null) {
           await file.writeAsBytes(bytes, flush: false);
           if (++_writesSinceTrim >= 40) {
@@ -124,7 +145,7 @@ class VideoInfoCache {
 
   Future<VideoInfo?> info(String path) {
     if (_mem.containsKey(path)) return Future.value(_mem[path]);
-    return _pending[path] ??= NativeBridge.instance.videoInfo(path).then((v) {
+    return _pending[path] ??= NativeBridge.instance.videoInfo(path).timeout(const Duration(seconds: 6), onTimeout: () => null).then((v) {
       _mem[path] = v;
       while (_mem.length > 600) {
         _mem.remove(_mem.keys.first);

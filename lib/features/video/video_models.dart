@@ -66,6 +66,7 @@ class VideoSettings {
     this.subBackground = false,
     this.subBottom = 40,
     this.subAuto = true,
+    this.thumbnails = true,
   });
 
   final int skipSeconds;
@@ -92,6 +93,9 @@ class VideoSettings {
   final int subBottom;
   final bool subAuto;
 
+  /// Video pictures in the library (the phone makes them one at a time; turn off if an old phone struggles).
+  final bool thumbnails;
+
   VideoSettings copyWith({
     int? skipSeconds,
     ResumeMode? resumeMode,
@@ -116,6 +120,7 @@ class VideoSettings {
     bool? subBackground,
     int? subBottom,
     bool? subAuto,
+    bool? thumbnails,
   }) =>
       VideoSettings(
         skipSeconds: skipSeconds ?? this.skipSeconds,
@@ -141,6 +146,7 @@ class VideoSettings {
         subBackground: subBackground ?? this.subBackground,
         subBottom: subBottom ?? this.subBottom,
         subAuto: subAuto ?? this.subAuto,
+        thumbnails: thumbnails ?? this.thumbnails,
       );
 
   Map<String, Object?> toJson() => {
@@ -167,6 +173,7 @@ class VideoSettings {
         'sBg': subBackground,
         'sBottom': subBottom,
         'sAuto': subAuto,
+        'thumbs': thumbnails,
       };
 
   static VideoSettings fromJson(Object? raw) {
@@ -207,6 +214,7 @@ class VideoSettings {
       subBackground: b('sBg', d.subBackground),
       subBottom: i('sBottom', d.subBottom, 0, 200),
       subAuto: b('sAuto', d.subAuto),
+      thumbnails: b('thumbs', d.thumbnails),
     );
   }
 }

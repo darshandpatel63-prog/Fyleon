@@ -70,6 +70,7 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> with Si
   String? _folder;
   final Set<String> _selected = {};
   final Set<String> _gone = {};
+  bool _thumbsOn = true;
 
   @override
   void dispose() {
@@ -137,6 +138,7 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> with Si
     final mode = ref.watch(viewModeProvider);
     final history = ref.watch(videoHistoryProvider);
     final favs = ref.watch(favoritesProvider);
+    _thumbsOn = ref.watch(videoSettingsProvider).thumbnails;
     final scheme = Theme.of(context).colorScheme;
     final selecting = _selected.isNotEmpty;
 
@@ -344,6 +346,16 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> with Si
     );
   }
 
+  /// The picture of a video, or a plain icon tile when thumbnails are switched off in the settings.
+  Widget _thumb(FileItem f, double radius) {
+    if (_thumbsOn) return VideoThumb(item: f, radius: radius);
+    final scheme = Theme.of(context).colorScheme;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: ColoredBox(color: scheme.surfaceContainerHighest, child: Center(child: Icon(Icons.movie_rounded, color: scheme.onSurfaceVariant.withValues(alpha: 0.6)))),
+    );
+  }
+
   double? _progressOf(FileItem f, Map<String, VideoRecord> history) {
     final r = history[f.path];
     if (r == null || r.durationMs <= 0) return null;
@@ -373,7 +385,7 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> with Si
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      VideoThumb(item: f, radius: 12),
+                      _thumb(f, 12),
                       Positioned(right: 4, bottom: 4, child: _DurationBadge(path: f.path)),
                       if (progress != null)
                         Positioned(
@@ -439,7 +451,7 @@ class _VideoLibraryScreenState extends ConsumerState<VideoLibraryScreen> with Si
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  VideoThumb(item: f, radius: 14),
+                  _thumb(f, 14),
                   Positioned(right: 6, bottom: 6, child: _DurationBadge(path: f.path)),
                   if (progress != null)
                     Positioned(

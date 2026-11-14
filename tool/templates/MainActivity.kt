@@ -5,6 +5,7 @@ import android.app.AppOpsManager
 import android.app.usage.StorageStatsManager
 import android.app.usage.UsageStatsManager
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -13,6 +14,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
 import android.media.AudioManager
+import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
@@ -22,8 +24,10 @@ import android.os.Build
 import android.os.Process
 import android.os.StatFs
 import android.os.storage.StorageManager
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.util.Size
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
@@ -45,7 +49,15 @@ class MainActivity : AudioServiceActivity() {
     private var channel: MethodChannel? = null
     private val ready = ArrayList<String>()
     private val pool = Executors.newFixedThreadPool(2)
-    private val thumbPool = Executors.newFixedThreadPool(2)
+    // Thumbnails: ONE at a time and at low priority, so the video decoder is never fought over.
+    private val thumbPool = Executors.newSingleThreadExecutor { r ->
+        Thread {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+            r.run()
+        }
+    }
+    private val infoPool = Executors.newFixedThreadPool(2)
+    @Volatile private var frameThread: Thread? = null
     private var clearCacheResult: MethodChannel.Result? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
@@ -147,6 +159,13 @@ class MainActivity : AudioServiceActivity() {
                 // ---- video player ----
                 "videoInfo" -> videoInfo(call.argument<String>("path"), result)
                 "videoThumb" -> videoThumb(call.argument<String>("path"), call.argument<Int>("width") ?: 320, result)
+                "decoderCheck" -> decoderCheck(
+                    call.argument<String>("mime"),
+                    call.argument<Int>("width") ?: 0,
+                    call.argument<Int>("height") ?: 0,
+                    call.argument<Boolean>("video") ?: true,
+                    result,
+                )
                 "setBrightness" -> {
                     try {
                         val v = (call.argument<Double>("value") ?: -1.0).toFloat()
@@ -517,7 +536,7 @@ class MainActivity : AudioServiceActivity() {
 
     /** Container + stream details of a video (or audio) file. Never throws. */
     private fun videoInfo(path: String?, result: MethodChannel.Result) {
-        thumbPool.execute {
+        infoPool.execute {
             val out = HashMap<String, Any?>()
             val r = MediaMetadataRetriever()
             try {
@@ -528,11 +547,6 @@ class MainActivity : AudioServiceActivity() {
                 out["rotation"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
                 out["bitrate"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull() ?: 0L
                 out["mime"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
-                if (Build.VERSION.SDK_INT >= 28) {
-                    val frames = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)?.toLongOrNull() ?: 0L
-                    val dur = (out["durationMs"] as Long)
-                    if (frames > 0 && dur > 0) out["fps"] = frames * 1000.0 / dur
-                }
             } catch (e: Exception) {
             } finally {
                 try {
@@ -571,30 +585,69 @@ class MainActivity : AudioServiceActivity() {
                 } catch (e: Exception) {
                 }
             }
+            for (tr in tracks) {
+                if (tr["type"] == "video" && tr["fps"] != null) {
+                    out["fps"] = tr["fps"]
+                    break
+                }
+            }
             out["tracks"] = tracks
             runOnUiThread { result.success(out) }
         }
     }
 
-    /** One JPEG frame (about 10% into the video) for the library grid. */
-    private fun videoThumb(path: String?, width: Int, result: MethodChannel.Result) {
-        thumbPool.execute {
-            var bytes: ByteArray? = null
+    private fun scaleJpeg(bmp: Bitmap, width: Int): ByteArray {
+        val w = width.coerceIn(64, 1024)
+        val h = (bmp.height.toLong() * w / bmp.width.coerceAtLeast(1)).toInt().coerceAtLeast(1)
+        val scaled = if (bmp.width == w) bmp else Bitmap.createScaledBitmap(bmp, w, h, true)
+        val bos = ByteArrayOutputStream()
+        scaled.compress(Bitmap.CompressFormat.JPEG, 80, bos)
+        if (scaled !== bmp) scaled.recycle()
+        return bos.toByteArray()
+    }
+
+    /** The thumbnail Android itself keeps for this video (made by the system, no decoder of ours). */
+    private fun mediaStoreThumb(path: String, width: Int): ByteArray? {
+        if (Build.VERSION.SDK_INT < 29) return null
+        try {
+            val base = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            contentResolver.query(base, arrayOf(MediaStore.Video.Media._ID), MediaStore.Video.Media.DATA + "=?", arrayOf(path), null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val uri = ContentUris.withAppendedId(base, c.getLong(0))
+                    val bmp = contentResolver.loadThumbnail(uri, Size(width, width), null)
+                    try {
+                        return scaleJpeg(bmp, width)
+                    } finally {
+                        bmp.recycle()
+                    }
+                }
+            }
+        } catch (e: Throwable) {
+        }
+        return null
+    }
+
+    /**
+     * Last resort: decode one frame ourselves. It runs in its own thread with a time limit, and when an earlier
+     * extraction is still stuck NO new one is started (a stuck extraction can hold the phone's video decoder).
+     */
+    private fun frameThumb(path: String, width: Int, timeoutMs: Long): ByteArray? {
+        val running = frameThread
+        if (running != null && running.isAlive) return null
+        val holder = arrayOfNulls<ByteArray>(1)
+        val t = Thread {
             val r = MediaMetadataRetriever()
             try {
-                r.setDataSource(path!!)
+                r.setDataSource(path)
                 val dur = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-                val atUs = (dur / 10).coerceAtMost(10_000L) * 1000L
+                val atUs = if (dur > 3000L) 1_000_000L else 0L
                 val bmp = r.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 if (bmp != null) {
-                    val w = width.coerceIn(64, 1024)
-                    val h = (bmp.height.toLong() * w / bmp.width).toInt().coerceAtLeast(1)
-                    val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
-                    val bos = ByteArrayOutputStream()
-                    scaled.compress(Bitmap.CompressFormat.JPEG, 80, bos)
-                    bytes = bos.toByteArray()
-                    if (scaled !== bmp) scaled.recycle()
-                    bmp.recycle()
+                    try {
+                        holder[0] = scaleJpeg(bmp, width)
+                    } finally {
+                        bmp.recycle()
+                    }
                 }
             } catch (e: Throwable) {
             } finally {
@@ -603,7 +656,63 @@ class MainActivity : AudioServiceActivity() {
                 } catch (e: Exception) {
                 }
             }
+        }
+        t.priority = Thread.MIN_PRIORITY
+        frameThread = t
+        t.start()
+        t.join(timeoutMs)
+        return if (t.isAlive) null else holder[0]
+    }
+
+    private fun videoThumb(path: String?, width: Int, result: MethodChannel.Result) {
+        if (path == null) {
+            result.success(null)
+            return
+        }
+        thumbPool.execute {
+            var bytes: ByteArray? = mediaStoreThumb(path, width)
+            if (bytes == null) bytes = frameThumb(path, width, 4000L)
             runOnUiThread { result.success(bytes) }
+        }
+    }
+
+    /** Which decoders this phone has for a codec (and whether the picked one is hardware or software). */
+    private fun decoderCheck(mime: String?, width: Int, height: Int, isVideo: Boolean, result: MethodChannel.Result) {
+        infoPool.execute {
+            val out = HashMap<String, Any?>()
+            try {
+                if (mime != null) {
+                    val list = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+                    val fmt = if (isVideo) {
+                        MediaFormat.createVideoFormat(mime, width.coerceAtLeast(16), height.coerceAtLeast(16))
+                    } else {
+                        MediaFormat.createAudioFormat(mime, 48000, 2)
+                    }
+                    val picked = list.findDecoderForFormat(fmt)
+                    val names = ArrayList<String>()
+                    var anyHardware = false
+                    var pickedSoftware = false
+                    for (info in list.codecInfos) {
+                        if (info.isEncoder) continue
+                        if (info.supportedTypes.none { it.equals(mime, ignoreCase = true) }) continue
+                        names.add(info.name)
+                        val software = if (Build.VERSION.SDK_INT >= 29) {
+                            info.isSoftwareOnly
+                        } else {
+                            info.name.startsWith("OMX.google.") || info.name.startsWith("c2.android.")
+                        }
+                        if (!software) anyHardware = true
+                        if (info.name == picked) pickedSoftware = software
+                    }
+                    out["supported"] = picked != null
+                    out["name"] = picked
+                    out["software"] = picked != null && pickedSoftware
+                    out["hardware"] = anyHardware
+                    out["decoders"] = names
+                }
+            } catch (e: Throwable) {
+            }
+            runOnUiThread { result.success(out) }
         }
     }
 

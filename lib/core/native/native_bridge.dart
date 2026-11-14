@@ -142,6 +142,28 @@ class VideoInfo {
   }
 }
 
+/// Does this phone have a decoder for a codec, and is it hardware or software?
+class DecoderCheck {
+  const DecoderCheck({required this.supported, this.name, this.software = false, this.hardwareExists = false, this.decoders = const []});
+
+  final bool supported;
+  final String? name; // the decoder Android would pick
+  final bool software; // the picked decoder is software-only (can be slow / hot)
+  final bool hardwareExists;
+  final List<String> decoders;
+
+  static DecoderCheck? fromMap(Map<Object?, Object?> m) {
+    if (!m.containsKey('supported')) return null;
+    return DecoderCheck(
+      supported: m['supported'] == true,
+      name: m['name'] as String?,
+      software: m['software'] == true,
+      hardwareExists: m['hardware'] == true,
+      decoders: [for (final d in (m['decoders'] as List? ?? const [])) d.toString()],
+    );
+  }
+}
+
 /// Talks to MainActivity.kt (Android): files received from "Open with / Share",
 /// and free storage space.
 class NativeBridge {
@@ -343,6 +365,17 @@ class NativeBridge {
     if (!isAndroid) return null;
     try {
       return await _channel.invokeMethod<Uint8List>('videoThumb', {'path': path, 'width': width});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Decoder availability for one codec (mime type like video/hevc or audio/ac3).
+  Future<DecoderCheck?> decoderCheck(String mime, {int width = 0, int height = 0, bool video = true}) async {
+    if (!isAndroid) return null;
+    try {
+      final r = await _channel.invokeMethod<Map<Object?, Object?>>('decoderCheck', {'mime': mime, 'width': width, 'height': height, 'video': video});
+      return r == null ? null : DecoderCheck.fromMap(r);
     } catch (_) {
       return null;
     }

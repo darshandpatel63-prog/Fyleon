@@ -60,6 +60,7 @@ Legend: [x] done in code (untested on device) | [ ] planned
 - [x] Subtitles SRT / VTT / ASS-SSA: auto sidecar, choose file, delay, size, colour, outline, background; remembered per video
 - [x] Video library: All / Folders / Recent / Favorites, search, sort, list/grid, thumbnails + duration, watched progress, multi-select actions
 - [x] Details sheet (container, tracks), playlist sheet, honest unsupported-codec screen, Settings > Media > Video player
+- [x] Session 12: decoder check banners, stall watchdog, playback log, sleep timer, frame step, library thumbnails made safe (one at a time, never during playback, switchable)
 - [ ] v2 (needs a stronger engine): audio-track + embedded-subtitle selection, Picture-in-Picture, frame-step, chapters, software decoders, network streams, trim/convert tools
 
 ## Ideas taken from other file managers

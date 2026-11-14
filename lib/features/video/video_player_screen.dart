@@ -23,6 +23,7 @@ import 'subtitle_parser.dart';
 import 'video_models.dart';
 import 'video_prefs.dart';
 import 'video_settings_screen.dart';
+import 'video_thumbs.dart';
 
 List<String> _listFileNames(String dir) {
   try {
@@ -109,6 +110,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   Offset _tapAt = Offset.zero;
   double _speedBeforeLongPress = 1;
 
+  // diagnostics + safety nets
+  final Stopwatch _openWatch = Stopwatch();
+  final DateTime _t0 = DateTime.now();
+  final List<String> _log = [];
+  DecoderCheck? _decoder;
+  String? _notice; // yellow banner: "no decoder", "software decoding", "no sound"...
+  bool _stalled = false;
+  Duration _lastPos = Duration.zero;
+  DateTime _lastProgress = DateTime.now();
+  Timer? _watchdog;
+  Timer? _sleepTimer;
+  DateTime? _sleepAt;
+  bool _sleepAtEnd = false;
+
   // subtitles
   List<SubCue> _cues = [];
   String? _subPath;
@@ -136,6 +151,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // no thumbnail / media work next to the player: it would fight the video decoder
+    VideoThumbCache.paused = true;
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     if (_s.keepScreenOn) NativeBridge.instance.keepScreenOn(true);
     NativeBridge.instance.getBrightness().then((v) => _bright = v);
@@ -150,6 +167,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     _hideTimer?.cancel();
     _hudTimer?.cancel();
     _bannerTimer?.cancel();
+    _watchdog?.cancel();
+    _sleepTimer?.cancel();
+    VideoThumbCache.paused = false;
     _audioPosSub?.cancel();
     _audioStateSub?.cancel();
     _saveProgress();
@@ -238,7 +258,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
       _panY = 0;
       _resumedAt = null;
       _pos.value = Duration.zero;
+      _notice = null;
+      _stalled = false;
+      _decoder = null;
     });
+    _lastPos = Duration.zero;
+    _lastProgress = DateTime.now();
     await old?.dispose();
 
     if (item.size == 0) {
@@ -250,9 +275,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     }
 
     final c = VideoPlayerController.file(File(item.path));
+    _openWatch
+      ..reset()
+      ..start();
+    _logAdd('open ${item.name} (${formatSize(item.size)})');
     try {
       await c.initialize();
     } catch (e) {
+      _logAdd('open failed: $e');
       await c.dispose();
       final info = await NativeBridge.instance.videoInfo(item.path);
       if (!mounted) return;
@@ -268,6 +298,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
       return;
     }
     _c = c;
+    _logAdd('opened in ${_openWatch.elapsedMilliseconds} ms: ${c.value.size.width.round()}x${c.value.size.height.round()}, ${formatClock(c.value.duration)}');
     c.addListener(_onTick);
     await c.setLooping(_repeat == VideoRepeat.one);
     await c.setPlaybackSpeed(_speed);
@@ -293,6 +324,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     }
     if (!mounted) return;
     await c.play();
+    _logAdd('play');
+    _startWatchdog();
     _scheduleHide();
   }
 
@@ -320,8 +353,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   }
 
   Future<void> _afterOpen(FileItem item, VideoPlayerController c) async {
+    // let the picture start first: no extra media work in the first moments
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted || _item.path != item.path) return;
     final info = await NativeBridge.instance.videoInfo(item.path);
     if (mounted && _item.path == item.path) setState(() => _info = info);
+    unawaited(_checkDecoders(item, info));
 
     // subtitles next to the video
     final names = await compute(_listFileNames, p.dirname(item.path));
@@ -368,6 +405,11 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     if (c == null) return;
     final v = c.value;
     if (!_audioMode) _pos.value = v.position;
+    if (v.position != _lastPos) {
+      _lastPos = v.position;
+      _lastProgress = DateTime.now();
+      if (_stalled && mounted) setState(() => _stalled = false);
+    }
     if (v.hasError && _error == null && mounted) {
       setState(() => _error = 'Playback stopped: ${v.errorDescription ?? 'unknown error'}');
       return;
@@ -399,7 +441,12 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
       await _history.record(_item.path, position: Duration.zero, duration: c.value.duration, subtitle: _subPath, subDelayMs: _subDelayMs);
     }
     final next = _nextIndex;
-    if (next != null && (_s.autoNext || _repeat == VideoRepeat.all)) {
+    if (_sleepAtEnd) {
+      _sleepAtEnd = false;
+      _sleepAt = null;
+      if (mounted) setState(() => _ended = true);
+      _toast('Sleep timer: stopped after this video');
+    } else if (next != null && (_s.autoNext || _repeat == VideoRepeat.all)) {
       await _playIndex(next);
     } else if (mounted) {
       setState(() {
@@ -916,7 +963,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
         for (final t in i.text) line('Subtitle track', '${codecLabel(t.mime)}${t.lang != null && t.lang != 'und' ? '  ${t.lang}' : ''}'),
       ] else
         'Stream details are not available for this file.',
-      line('Decoder', 'the phone\'s own (hardware when available)'),
+      if (_decoder == null)
+        line('Video decoder', 'not checked yet')
+      else if (!_decoder!.supported)
+        line('Video decoder', 'NONE on this phone for this codec')
+      else
+        line('Video decoder', '${_decoder!.name} (${_decoder!.software ? 'software' : 'hardware'})'),
+      if (_decoder != null && _decoder!.decoders.isNotEmpty) line('All decoders', _decoder!.decoders.join(', ')),
     ];
     showModalBottomSheet<void>(
       context: context,
@@ -932,6 +985,21 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
               const Text('Video details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 10),
               for (final r in rows) Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: SelectableText(r, style: TextStyle(color: scheme.onSurface, fontSize: 13.5))),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Expanded(child: Text('Playback log', style: TextStyle(fontWeight: FontWeight.w800))),
+                  TextButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: _log.join('\n')));
+                      _toast('Log copied');
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 16),
+                    label: const Text('Copy'),
+                  ),
+                ],
+              ),
+              SelectableText(_log.isEmpty ? '-' : _log.join('\n'), style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12, height: 1.35)),
               if (i != null && i.text.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -997,6 +1065,186 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     _scheduleHide();
   }
 
+  // ------------------------------------------------------------------ diagnostics + safety nets
+
+  void _logAdd(String m) {
+    final s = DateTime.now().difference(_t0).inMilliseconds / 1000;
+    _log.add('${s.toStringAsFixed(1)} s  $m');
+    if (_log.length > 150) _log.removeAt(0);
+  }
+
+  /// Is there a decoder for the picture and for the sound? Tells the owner in plain words instead of a black screen.
+  Future<void> _checkDecoders(FileItem item, VideoInfo? info) async {
+    if (info == null) return;
+    final notes = <String>[];
+    final v = info.video.isEmpty ? null : info.video.first;
+    if (v != null) {
+      final w = v.width ?? info.width;
+      final h = v.height ?? info.height;
+      final dc = await NativeBridge.instance.decoderCheck(v.mime, width: w, height: h);
+      if (!mounted || _item.path != item.path) return;
+      setState(() => _decoder = dc);
+      _logAdd('video ${codecLabel(v.mime)} ${w}x$h: ${dc == null ? 'check failed' : (dc.supported ? '${dc.name} (${dc.software ? 'software' : 'hardware'})' : 'NO decoder')}');
+      if (dc != null && !dc.supported) {
+        notes.add('This phone has no decoder for ${codecLabel(v.mime)}, so the picture may stay black. Try "Open with another app".');
+      } else if (dc != null && dc.software && math.max(w, h) >= 1280) {
+        notes.add('This ${codecLabel(v.mime)} video is decoded by software (no hardware decoder). It can lag and heat the phone.');
+      }
+    }
+    final seen = <String>{};
+    for (final a in info.audio) {
+      if (!seen.add(a.mime)) continue;
+      final dc = await NativeBridge.instance.decoderCheck(a.mime, video: false);
+      if (!mounted || _item.path != item.path) return;
+      _logAdd('audio ${codecLabel(a.mime)}: ${dc == null ? 'check failed' : (dc.supported ? dc.name : 'NO decoder')}');
+      if (dc != null && !dc.supported) {
+        notes.add('No sound: this phone cannot decode ${codecLabel(a.mime)} audio.');
+      }
+    }
+    if (notes.isNotEmpty && mounted) setState(() => _notice = notes.join('\n'));
+  }
+
+  /// Playing but the position does not move for 6 seconds = something is wrong (busy / missing decoder).
+  void _startWatchdog() {
+    _watchdog?.cancel();
+    _lastProgress = DateTime.now();
+    _watchdog = Timer.periodic(const Duration(seconds: 2), (_) {
+      final c = _c;
+      if (c == null || !mounted || _audioMode || _stalled) return;
+      final v = c.value;
+      if (v.isPlaying && !v.isBuffering && DateTime.now().difference(_lastProgress) > const Duration(seconds: 6)) {
+        _logAdd('stalled: the position did not move for 6 s');
+        setState(() => _stalled = true);
+      }
+    });
+  }
+
+  Future<void> _retry() async {
+    _logAdd('retry');
+    await _open(_item);
+  }
+
+  Widget _noticeLayer() {
+    if (_stalled) {
+      return Positioned.fill(
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.88), borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.hourglass_empty_rounded, color: Colors.white, size: 34),
+                const SizedBox(height: 10),
+                const Text('The video is not moving', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 6),
+                Text(_notice ?? 'The phone\'s decoder may be busy or may not support this video.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, height: 1.35)),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    FilledButton(onPressed: _retry, child: const Text('Try again')),
+                    OutlinedButton(onPressed: () => NativeBridge.instance.openWith(_item.path), child: const Text('Open with another app')),
+                    TextButton(onPressed: _showInfo, child: const Text('Details')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    final n = _notice;
+    if (n == null) return const SizedBox.shrink();
+    return Positioned(
+      left: 12,
+      right: 12,
+      top: 0,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 64),
+          child: Material(
+            color: const Color(0xFFFFE08A),
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => setState(() => _notice = null),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, size: 20, color: Colors.black87),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(n, style: const TextStyle(color: Colors.black87, fontSize: 12.5, height: 1.3))),
+                    const Icon(Icons.close_rounded, size: 18, color: Colors.black54),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _stepFrame(int dir) async {
+    final c = _c;
+    if (c == null || _audioMode) return;
+    await c.pause();
+    final fps = (_info?.fps ?? 30).clamp(5.0, 120.0);
+    await _seekTo(_pos.value + Duration(microseconds: (1000000 / fps * dir).round()));
+    _showHud(_Hud(dir > 0 ? Icons.skip_next_rounded : Icons.skip_previous_rounded, dir > 0 ? 'Next frame' : 'Previous frame'), ms: 700);
+  }
+
+  void _setSleep(Duration? after, {bool atEnd = false}) {
+    _sleepTimer?.cancel();
+    setState(() {
+      _sleepAtEnd = atEnd;
+      _sleepAt = after == null ? null : DateTime.now().add(after);
+    });
+    if (after != null) {
+      _sleepTimer = Timer(after, () async {
+        if (!mounted) return;
+        final c = _c;
+        if (_audioMode) {
+          await _ap.pause();
+        } else {
+          await c?.pause();
+        }
+        setState(() => _sleepAt = null);
+        _toast('Sleep timer: paused');
+      });
+    }
+    _toast(after == null && !atEnd ? 'Sleep timer off' : (atEnd ? 'Will stop after this video' : 'Will pause in ${after!.inMinutes} min'));
+  }
+
+  Future<void> _sleepDialog() async {
+    _hideTimer?.cancel();
+    final choice = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Sleep timer'),
+        children: [
+          for (final m in const [15, 30, 45, 60, 90]) SimpleDialogOption(onPressed: () => Navigator.pop(ctx, m), child: Text('Pause in $m minutes')),
+          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, -1), child: const Text('Stop after this video')),
+          SimpleDialogOption(onPressed: () => Navigator.pop(ctx, 0), child: const Text('Off')),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    if (choice == 0) {
+      _setSleep(null);
+    } else if (choice == -1) {
+      _setSleep(null, atEnd: true);
+    } else {
+      _setSleep(Duration(minutes: choice));
+    }
+    _scheduleHide();
+  }
+
   // ------------------------------------------------------------------ build
 
   @override
@@ -1036,6 +1284,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
             if (!_audioMode) _subtitleLayer(),
             _hudLayer(),
             _resumeBanner(),
+            _noticeLayer(),
             if (_ended)
               Center(
                 child: IconButton.filled(
@@ -1056,14 +1305,14 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     final vs = c.value.size;
     final (dw, dh) = displaySizeFor(_aspect,
         videoW: vs.width, videoH: vs.height, boxW: _box.width, boxH: _box.height, devicePixelRatio: MediaQuery.devicePixelRatioOf(context));
+    final video = SizedBox(width: dw, height: dh, child: VideoPlayer(c));
+    // normal case: nothing around the picture (no clip, no transform) = the lightest and safest path
+    if (_zoom <= 1.001 && _panX == 0 && _panY == 0) return Center(child: video);
     return ClipRect(
       child: Center(
         child: Transform.translate(
           offset: Offset(_panX, _panY),
-          child: Transform.scale(
-            scale: _zoom,
-            child: SizedBox(width: dw, height: dh, child: VideoPlayer(c)),
-          ),
+          child: Transform.scale(scale: _zoom, child: video),
         ),
       ),
     );
@@ -1308,13 +1557,15 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     }
 
     final c = _c!;
-    final queueText = _queue.length > 1 ? '${_qIndex + 1} / ${_queue.length}' : null;
+    final sleepText = _sleepAtEnd ? 'sleep: after this video' : (_sleepAt != null ? 'sleep timer on' : null);
+    final queueText = [if (_queue.length > 1) '${_qIndex + 1} / ${_queue.length}', if (sleepText != null) sleepText].join('  -  ');
     return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !_controls,
-        child: AnimatedOpacity(
-          opacity: _controls ? 1 : 0,
-          duration: const Duration(milliseconds: 200),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 150),
+        child: !_controls
+            ? const SizedBox.shrink(key: ValueKey('hidden'))
+            : RepaintBoundary(
+          key: const ValueKey('shown'),
           child: Column(
             children: [
               // ---- top bar
@@ -1330,7 +1581,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(_item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-                            if (queueText != null) Text(queueText, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
+                            if (queueText.isNotEmpty) Text(queueText, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
                           ],
                         ),
                       ),
@@ -1438,11 +1689,20 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
                                     _showQueue();
                                   case 'settings':
                                     _openSettings();
+                                  case 'sleep':
+                                    _sleepDialog();
+                                  case 'frame_next':
+                                    _stepFrame(1);
+                                  case 'frame_prev':
+                                    _stepFrame(-1);
                                 }
                               },
                               itemBuilder: (context) => const [
                                 PopupMenuItem(value: 'info', child: Text('Video details')),
                                 PopupMenuItem(value: 'queue', child: Text('Playlist (this folder)')),
+                                PopupMenuItem(value: 'sleep', child: Text('Sleep timer')),
+                                PopupMenuItem(value: 'frame_prev', child: Text('Previous frame')),
+                                PopupMenuItem(value: 'frame_next', child: Text('Next frame')),
                                 PopupMenuItem(value: 'settings', child: Text('Player settings')),
                               ],
                             ),

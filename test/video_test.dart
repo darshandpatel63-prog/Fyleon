@@ -166,6 +166,21 @@ Dialogue: 0,0:00:01.50,0:00:03.00,Default,,0,0,0,,{\i1}Hello{\i0}\Nworld, with c
       expect(VideoSettings.fromJson('nonsense').skipSeconds, 10);
     });
 
+    test('thumbnail switch and decoder report', () {
+      expect(const VideoSettings().thumbnails, isTrue);
+      expect(VideoSettings.fromJson({'thumbs': false}).thumbnails, isFalse);
+      expect(VideoSettings.fromJson(const VideoSettings().copyWith(thumbnails: false).toJson()).thumbnails, isFalse);
+      final d = DecoderCheck.fromMap({'supported': true, 'name': 'c2.qti.avc.decoder', 'software': false, 'hardware': true, 'decoders': ['c2.qti.avc.decoder', 'c2.android.avc.decoder']})!;
+      expect(d.supported, isTrue);
+      expect(d.software, isFalse);
+      expect(d.hardwareExists, isTrue);
+      expect(d.decoders.length, 2);
+      final none = DecoderCheck.fromMap({'supported': false})!;
+      expect(none.supported, isFalse);
+      expect(none.name, isNull);
+      expect(DecoderCheck.fromMap({}), isNull);
+    });
+
     test('resume point', () {
       const d = Duration(seconds: 100);
       expect(resumePoint(const Duration(seconds: 5), d), isNull);
