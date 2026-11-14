@@ -32,7 +32,7 @@ Rules that decide many details:
 | File manager | list/grid, sort, filter, search, recents, Recent "See all", create/rename/copy/move/delete, Trash, Starred, Favorites, PIN Safe Folder (not encrypted yet) - `code written`, partly device-tested |
 | Viewers | PDF (page pill 3/52), EPUB (pages, TOC, themes), text/code (highlight + editor), images (swipe, zoom, photo editor), DOCX/XLSX/PPTX basic previews, archive list + extract, web/Markdown preview - `code written` |
 | Viewer toolbar | customisable (Star, Heart, Share, Edit, Details, Open with, Prev/Next) - `code written` |
-| Media | audio + video via `just_audio` / `video_player`, notification + background audio, "Audio only" for video - `code written`, basic (no subtitles, no gestures yet) |
+| Media | audio via `just_audio` (notification + background); **video player v1 (session 11) `code written`**: gestures, subtitles, resume, queue, library; audio-track/embedded-subtitle choice, PiP, software decoders = v2 |
 | Apps | installed apps, sizes/cache (Usage access), guided cache clean, uninstall, APK backup - `code written` |
 | Dash | Wi-Fi/hotspot sharing: nearby list, QR, 5-7 digit code, many receivers, ads between files - `code written`, not encrypted |
 | Ads | banner / interstitial / rewarded / native live; rewarded-interstitial + app-open ids stored, not shown yet |
@@ -160,7 +160,7 @@ ARCHIVE BROWSER
 
 ---
 
-### 5.3 Video player
+### 5.3 Video player  (v1: `code written` in session 11, see HANDOVER.md; v2/v3 below still `planned`)
 
 **Goal:** a dependable local player first, advanced network player later. (VLC / MX-class capability, original design.)
 
@@ -403,7 +403,7 @@ Time is not promised. Each step ends with: code -> CI build (debug) -> phone tes
 
 ### Next work order (requested by the owner)
 1. (Docs, now) Put `FORMATS_BLUEPRINT.md` and `FULL_FEATURE_PLAN.md` in the repo root; merge the format plan into the blueprint.
-2. **Video player v1** from 5.3 (gestures, aspect, resume, subtitles, library, background, honest errors).
+2. ~~Video player v1~~ code written (session 11); phone test pending.
 3. **Gallery v1** from 5.4 (timeline, albums, metadata sheet, editor extensions with undo/redo + compare).
 4. Then P1 (identify engine + Format Packs page) and Music v1.
 

@@ -1,6 +1,6 @@
 # HANDOVER (read this first in every new chat)
 
-Last updated: 2026-11-10, end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
+Last updated: 2026-11-12, end of session 11 (video player v1; sessions 9 and 10 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
 
 ## Rules for the next session
 1. Read this file, then ROADMAP.md. Continue from "Next steps". Do NOT restart or re-plan.
@@ -212,6 +212,38 @@ Done:
 - Tests: `test/session8_test.dart` (toolbar layout, crop math, rotate/crop with the image package, apps filter, Dash helpers, loopback
   transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
 - Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
+
+## Session 11: Video player v1 (code written, NOT compiled/run; the owner tests on the phone)
+Plan source: `FULL_FEATURE_PLAN.md` 5.3 (v1 on the existing `video_player` engine). New folder `lib/features/video/`:
+- `video_player_screen.dart`: full-screen player (replaces the old `_VideoPane`; `media_player_screen.dart` now only plays AUDIO itself and hands videos to `VideoPlayerScreen`).
+  Controls: play/pause, seek bar (tap right time = remaining/total), skip back/forward (5/10/15/30 s setting), previous/next video of the same folder
+  (queue sorted like the owner's Sort), repeat off/all/one, shuffle, speed 0.25x-3x, aspect modes (Fit, Fill, Stretch, Original, 16:9, 4:3), rotate button,
+  lock (hold the lock button to unlock; back button blocked while locked), controls auto-hide, immersive full screen, keep screen on.
+  Gestures (all optional in settings, all have buttons): swipe left/right = seek with preview (applied on release), left/right half vertical = brightness / volume
+  (swap with left-handed layout), pinch zoom + drag to move, double tap left/right = skip, double tap middle = play/pause, hold = 2x (rate configurable), tap = controls.
+  Subtitles: own parser for SRT / WebVTT / ASS-SSA (tags removed, Unicode), auto-load of `movie.srt`, `movie.en.srt`... next to the video, "choose file", delay +-100 ms / +-1 s,
+  size, colour, outline, dark background, bottom height, Latin-1 switch for old files; choice + delay remembered per video.
+  Resume: remembered per video (auto / ask / never, default auto with a "Resumed at ... Start over" banner); finished videos restart from 0.
+  "Audio only" button + automatic hand-over to the audio engine when the app is left (kept from session 8; notification controls).
+  Details sheet (container, resolution, fps, bitrate, every video/audio/subtitle track via MediaExtractor), playlist sheet, honest error screen
+  ("this phone could not play H.265 + AC-3..." + [Open with another app] [Details] [Next video]); 0-byte file message. NO ads on this screen.
+- `video_library_screen.dart`: Files home > Videos tile now opens it. Tabs All / Folders / Recent / Favorites, search, sort (the app-wide Sort sheet), list/grid, chip "Large (500 MB+)",
+  folder filter chip, thumbnails + duration badge + watched progress bar, long-press multi-select (favorite, share, Dash, remove from history, Trash with confirm), banner + native ads (list view).
+- `video_settings_screen.dart`: Settings > Media > Video player (playback, gestures, subtitles, thumbnail cache size + clear, clear watch history, reset).
+- `video_models.dart` (pure: settings, history record, resume rule, gesture/aspect/pan math, queue order, sidecar finder, codec names), `subtitle_parser.dart` (pure), `video_prefs.dart`
+  (settings + history in SharedPreferences, newest 300), `video_thumbs.dart` (thumbnail cache: memory 60 + disk limit 64 MB, info cache, `VideoThumb` widget).
+- Native (`tool/templates/MainActivity.kt`, also copied under android/): `videoInfo` (MediaMetadataRetriever + MediaExtractor), `videoThumb` (frame at ~10%), `setBrightness`/`getBrightness`
+  (window brightness only, restored on exit), `getVolume`/`setVolume` (media stream, no popup), `keepScreenOn`.
+- Tests: `test/video_test.dart` (subtitles incl. Windows line endings/BOM/UTF-16, gesture + aspect + pan math, settings JSON + clamping, resume rule, history trim, queue, sidecars, labels, library grouping).
+  Subtitle test expectations were cross-checked with a Python port of the parser.
+- NOT in v1 (honest): choosing an embedded audio track or embedded subtitle track, Picture-in-Picture, frame-step, chapters, software decoders for AVI/WMV/FLV etc. (need the v2 engine: Media3 plugin or optional pack),
+  `.sub/.smi` subtitles, sort by duration, "ask only after a long gap", sleep timer, network streams, video editing tools. Unsupported codecs show the honest error screen instead.
+- Risk list for the first build: `video_player` API use is unchanged; new `ListenableBuilder`, record destructuring, `Slider.onChangeStart`; Kotlin `MediaExtractor/MediaMetadataRetriever` calls.
+
+## Next steps (session 11 view)
+1. Run "Android Build" > debug, install, and test the video player: MP4 H.264, MKV, HEVC, a big file; all gestures; subtitles (.srt in Gujarati/Hindi, delay, size); resume; next/previous/repeat/shuffle;
+   aspect + zoom; lock; rotate; audio-only + leaving the app; library tabs/thumbnails/selection; settings; an unsupported file (error screen) and a 0-byte file. Send screenshots/log of anything wrong.
+2. Then **Gallery v1** (FULL_FEATURE_PLAN.md 5.4), then Format Packs F0-F3 (FORMATS_BLUEPRINT.md), then Music v1.
 
 ## Session 10 (docs only, no code changed)
 - Owner supplied `Fyleon_All_File_Formats.md` (26 categories) and `Fyleon_Feature_Specs.zip` (8 specs: master, video, image, music, file manager/archive, PDF/Office/eBook, code/data/3D, roadmap/QA).

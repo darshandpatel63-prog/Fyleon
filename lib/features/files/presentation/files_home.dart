@@ -15,6 +15,7 @@ import '../domain/file_category.dart';
 import '../domain/file_item.dart';
 import '../domain/file_kind.dart';
 import '../../apps/apps_screen.dart';
+import '../../video/video_library_screen.dart';
 import '../../dash/dash_screens.dart';
 import 'category_screen.dart';
 import 'collection_screen.dart';
@@ -105,7 +106,7 @@ class FilesHome extends ConsumerWidget {
                 title: c.label,
                 subtitle: sizeText(c),
                 heroTag: 'cat-${c.name}',
-                onTap: () => Navigator.of(context).push(fadeSlideRoute(CategoryScreen(category: c))),
+                onTap: () => Navigator.of(context).push(fadeSlideRoute(c == FileCategory.videos ? const VideoLibraryScreen() : CategoryScreen(category: c))),
               ),
             _BigCard(
               index: tileIndex++,

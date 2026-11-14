@@ -1,16 +1,15 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:video_player/video_player.dart';
 
 import '../../core/utils/format.dart';
 import '../../shared/widgets/bottom_safe.dart';
 import '../files/domain/file_item.dart';
 import '../files/domain/file_kind.dart';
 import 'audio_engine.dart';
+import '../video/video_player_screen.dart';
 import 'viewer_chrome.dart';
 import 'viewer_prefs.dart';
 
@@ -31,19 +30,18 @@ class MediaPlayerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // videos have their own full player (gestures, subtitles, resume, queue...)
+    if (item.kind != FileKind.audio) return VideoPlayerScreen(item: item);
     final scheme = Theme.of(context).colorScheme;
-    final isAudio = item.kind == FileKind.audio;
-    final bg = isAudio ? scheme.surface : Colors.black;
-    final fg = isAudio ? scheme.onSurface : Colors.white;
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: bg,
-        foregroundColor: fg,
-        title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: fg, fontSize: 17)),
-        actions: [ViewerActions(item: item, color: fg)],
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+        title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: scheme.onSurface, fontSize: 17)),
+        actions: [ViewerActions(item: item, color: scheme.onSurface)],
       ),
-      body: isAudio ? _AudioPane(item: item) : _VideoPane(item: item),
+      body: _AudioPane(item: item),
     );
   }
 }
@@ -273,249 +271,6 @@ class _AudioPaneState extends ConsumerState<_AudioPane> with WidgetsBindingObser
           ),
         ),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------- video
-
-class _VideoPane extends ConsumerStatefulWidget {
-  const _VideoPane({required this.item});
-
-  final FileItem item;
-
-  @override
-  ConsumerState<_VideoPane> createState() => _VideoPaneState();
-}
-
-class _VideoPaneState extends ConsumerState<_VideoPane> with WidgetsBindingObserver {
-  VideoPlayerController? _c;
-  String? _error;
-  bool _showControls = true;
-  Timer? _hideTimer;
-  double _speed = 1.0;
-
-  /// true while the sound is played by the audio engine (screen locked / app left / "audio only")
-  bool _audioMode = false;
-  bool _autoAudio = false;
-
-  AudioPlayer get _ap => AudioEngine.instance.player;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _init();
-  }
-
-  Future<void> _init() async {
-    final c = VideoPlayerController.file(File(widget.item.path));
-    try {
-      await c.initialize();
-      c.addListener(() {
-        if (mounted) setState(() {});
-      });
-      if (!mounted) {
-        await c.dispose();
-        return;
-      }
-      setState(() => _c = c);
-      await c.play();
-      _scheduleHide();
-    } catch (e) {
-      await c.dispose();
-      if (mounted) setState(() => _error = 'This video could not be played on this device.\n$e');
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final c = _c;
-    if (c == null) return;
-    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      if (!_audioMode && c.value.isPlaying) {
-        if (ref.read(backgroundPlayProvider)) {
-          _toAudio(auto: true);
-        } else {
-          c.pause();
-        }
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      if (_audioMode && _autoAudio) _toVideo();
-    }
-  }
-
-  /// Sound continues in the audio engine (notification + background), picture is paused.
-  Future<void> _toAudio({required bool auto}) async {
-    final c = _c;
-    if (c == null || _audioMode) return;
-    final pos = c.value.position;
-    _audioMode = true;
-    _autoAudio = auto;
-    await c.pause();
-    if (mounted) setState(() {});
-    try {
-      await AudioEngine.instance.load(widget.item.path, widget.item.name, start: pos);
-      await _ap.setSpeed(_speed);
-      unawaited(_ap.play());
-    } catch (_) {
-      _audioMode = false;
-      if (mounted) setState(() {});
-    }
-  }
-
-  Future<void> _toVideo() async {
-    final c = _c;
-    if (c == null || !_audioMode) return;
-    final pos = _ap.position;
-    await AudioEngine.instance.stop();
-    _audioMode = false;
-    _autoAudio = false;
-    await c.seekTo(pos);
-    await c.play();
-    if (mounted) setState(() {});
-    _scheduleHide();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _hideTimer?.cancel();
-    if (_audioMode) AudioEngine.instance.stop();
-    _c?.dispose();
-    super.dispose();
-  }
-
-  void _scheduleHide() {
-    _hideTimer?.cancel();
-    _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && (_c?.value.isPlaying ?? false)) setState(() => _showControls = false);
-    });
-  }
-
-  void _toggleControls() {
-    setState(() => _showControls = !_showControls);
-    if (_showControls) _scheduleHide();
-  }
-
-  void _seekBy(int seconds) {
-    final c = _c;
-    if (c == null) return;
-    final cur = _audioMode ? _ap.position : c.value.position;
-    final target = cur + Duration(seconds: seconds);
-    final max = c.value.duration;
-    final to = target < Duration.zero ? Duration.zero : (target > max ? max : target);
-    if (_audioMode) {
-      _ap.seek(to);
-    } else {
-      c.seekTo(to);
-    }
-    _scheduleHide();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final c = _c;
-    if (_error != null) {
-      return Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white))));
-    }
-    if (c == null) return const Center(child: CircularProgressIndicator(color: Colors.white));
-
-    final audioButton = IconButton(
-      tooltip: _audioMode ? 'Show video' : 'Audio only (plays in the background)',
-      color: Colors.white,
-      icon: Icon(_audioMode ? Icons.videocam_rounded : Icons.headphones_rounded),
-      onPressed: () => _audioMode ? _toVideo() : _toAudio(auto: false),
-    );
-
-    if (_audioMode) {
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: _audioArt(context, widget.item, note: 'Audio only - keeps playing in the background', fg: Colors.white),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomSafe(
-              child: StreamBuilder<PlayerState>(
-                stream: _ap.playerStateStream,
-                builder: (context, stateSnap) {
-                  final playing = stateSnap.data?.playing ?? false;
-                  return StreamBuilder<Duration>(
-                    stream: _ap.positionStream,
-                    builder: (context, posSnap) => _Controls(
-                      position: posSnap.data ?? Duration.zero,
-                      duration: c.value.duration,
-                      playing: playing,
-                      speed: _speed,
-                      fg: Colors.white,
-                      dark: true,
-                      onSeek: (d) => _ap.seek(d),
-                      onToggle: () => playing ? _ap.pause() : _ap.play(),
-                      onSkip: _seekBy,
-                      onSpeed: (s) {
-                        setState(() => _speed = s);
-                        _ap.setSpeed(s);
-                      },
-                      extra: [audioButton],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    final v = c.value;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _toggleControls,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Center(
-              child: AspectRatio(aspectRatio: v.aspectRatio == 0 ? 16 / 9 : v.aspectRatio, child: VideoPlayer(c)),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: AnimatedOpacity(
-              opacity: _showControls ? 1 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: IgnorePointer(
-                ignoring: !_showControls,
-                child: BottomSafe(
-                  child: _Controls(
-                    position: v.position,
-                    duration: v.duration,
-                    playing: v.isPlaying,
-                    speed: _speed,
-                    fg: Colors.white,
-                    dark: true,
-                    onSeek: (d) => c.seekTo(d),
-                    onToggle: () {
-                      v.isPlaying ? c.pause() : c.play();
-                      _scheduleHide();
-                    },
-                    onSkip: _seekBy,
-                    onSpeed: (s) {
-                      setState(() => _speed = s);
-                      c.setPlaybackSpeed(s);
-                    },
-                    extra: [audioButton],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

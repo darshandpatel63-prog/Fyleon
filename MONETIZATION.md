@@ -8,6 +8,7 @@
 | Rewarded | unlock a premium theme for 24 h | only when the user taps "Watch ad" |
 | Native (small template) | after every 4 items in lists/grids, Files home, Settings | max 6 per list, hidden until loaded, labelled "Ad" by AdMob |
 | Banner + native (Dash, Apps) | bottom banner on Dash home/send/receive/transfer and on the Apps screen; native ad after every 3 files on Dash lists (remote `ads.dashNativeEvery`), after every N items on the Apps list | never blocks sending/receiving; hidden until loaded; no interstitial inside Dash |
+The video player screen shows NO ads at all (banner, native, interstitial); the video library list keeps the normal bottom banner + native ads.
 Rewarded interstitial and app open: the ids are already in `config/fyleon_config.json` (and the test ids in `AppConfig`), but the app does not show these two formats yet (later, carefully capped).
 
 ## Which ads does a build show? (decided by the BUILD, not by editing files)

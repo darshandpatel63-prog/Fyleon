@@ -11,6 +11,7 @@ import '../files/application/files_providers.dart';
 import '../files/data/file_ops.dart';
 import '../../core/config/app_config.dart';
 import '../apps/apps_screen.dart';
+import '../video/video_settings_screen.dart';
 import '../dash/dash_screens.dart';
 import '../dash/dash_state.dart';
 import '../viewer/viewer_prefs.dart';
@@ -68,6 +69,13 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => Navigator.of(context).push(fadeSlideRoute(const AppsScreen())),
           ),
           _section(context, 'Media'),
+          ListTile(
+            leading: Icon(Icons.play_circle_outline_rounded, color: scheme.primary),
+            title: const Text('Video player'),
+            subtitle: const Text('Gestures, subtitles, resume, aspect ratio, skip time'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.of(context).push(fadeSlideRoute(const VideoSettingsScreen())),
+          ),
           SwitchListTile(
             secondary: Icon(Icons.headphones_rounded, color: scheme.primary),
             title: const Text('Keep playing in the background'),

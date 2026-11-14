@@ -20,6 +20,8 @@
                                      office_* (docx/xlsx basic), archive, text, image, pdf
         settings/                    settings, themes, viewer toolbar settings
         apps/                        installed apps (apps_model = pure filter/sort, providers, screen, guided queue screen)
+        video/                       video player v1: video_player_screen (UI + gestures + queue), video_library_screen, video_settings_screen,
+                                     video_models + subtitle_parser (pure, tested), video_prefs (settings + history), video_thumbs (thumbnail/info caches)
         dash/                        Fyleon Dash file sharing: dash_transport (protocol, sender, discovery, downloader; pure dart:io),
                                      dash_state (identity, save folder), dash_screens (home, send), dash_receive_screens, dash_widgets
         viewer/ (more)               viewer_prefs (toolbar settings, pure), viewer_chrome (top bar + pill widgets), file_neighbors,

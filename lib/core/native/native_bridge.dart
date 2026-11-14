@@ -66,6 +66,82 @@ class AppStats {
   int get total => app + data + cache;
 }
 
+
+/// One stream inside a media file (from MediaExtractor).
+class MediaTrackInfo {
+  const MediaTrackInfo({required this.type, required this.mime, this.lang, this.channels, this.sampleRate, this.width, this.height, this.fps, this.bitrate});
+
+  final String type; // video | audio | text | other
+  final String mime;
+  final String? lang;
+  final int? channels;
+  final int? sampleRate;
+  final int? width;
+  final int? height;
+  final double? fps;
+  final int? bitrate;
+
+  static MediaTrackInfo? fromMap(Map<Object?, Object?> m) {
+    final mime = m['mime'];
+    if (mime is! String) return null;
+    int? i(Object? v) => v is num ? v.toInt() : null;
+    return MediaTrackInfo(
+      type: (m['type'] as String?) ?? 'other',
+      mime: mime,
+      lang: m['lang'] as String?,
+      channels: i(m['channels']),
+      sampleRate: i(m['sampleRate']),
+      width: i(m['width']),
+      height: i(m['height']),
+      fps: m['fps'] is num ? (m['fps'] as num).toDouble() : null,
+      bitrate: i(m['bitrate']),
+    );
+  }
+}
+
+/// Container details of a video file (from MediaMetadataRetriever + MediaExtractor).
+class VideoInfo {
+  const VideoInfo({this.durationMs = 0, this.width = 0, this.height = 0, this.rotation = 0, this.bitrate = 0, this.mime, this.fps, this.tracks = const []});
+
+  final int durationMs;
+  final int width;
+  final int height;
+  final int rotation;
+  final int bitrate;
+  final String? mime;
+  final double? fps;
+  final List<MediaTrackInfo> tracks;
+
+  Duration get duration => Duration(milliseconds: durationMs);
+  Iterable<MediaTrackInfo> get video => tracks.where((t) => t.type == 'video');
+  Iterable<MediaTrackInfo> get audio => tracks.where((t) => t.type == 'audio');
+  Iterable<MediaTrackInfo> get text => tracks.where((t) => t.type == 'text');
+
+  static VideoInfo fromMap(Map<Object?, Object?> m) {
+    int i(Object? v) => v is num ? v.toInt() : 0;
+    final tracks = <MediaTrackInfo>[];
+    final raw = m['tracks'];
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is Map) {
+          final t = MediaTrackInfo.fromMap(e.cast<Object?, Object?>());
+          if (t != null) tracks.add(t);
+        }
+      }
+    }
+    return VideoInfo(
+      durationMs: i(m['durationMs']),
+      width: i(m['width']),
+      height: i(m['height']),
+      rotation: i(m['rotation']),
+      bitrate: i(m['bitrate']),
+      mime: m['mime'] as String?,
+      fps: m['fps'] is num ? (m['fps'] as num).toDouble() : null,
+      tracks: tracks,
+    );
+  }
+}
+
 /// Talks to MainActivity.kt (Android): files received from "Open with / Share",
 /// and free storage space.
 class NativeBridge {
@@ -250,6 +326,70 @@ class NativeBridge {
   Future<bool> openWifiSettings() => _bool('openWifiSettings');
 
   Future<bool> multicastLock(bool on) => _bool('multicastLock', {'on': on});
+
+  // ------------------------------------------------------------ video player
+  Future<VideoInfo?> videoInfo(String path) async {
+    if (!isAndroid) return null;
+    try {
+      final r = await _channel.invokeMethod<Map<Object?, Object?>>('videoInfo', {'path': path});
+      return r == null ? null : VideoInfo.fromMap(r);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// JPEG bytes of a frame of the video, or null.
+  Future<Uint8List?> videoThumb(String path, {int width = 320}) async {
+    if (!isAndroid) return null;
+    try {
+      return await _channel.invokeMethod<Uint8List>('videoThumb', {'path': path, 'width': width});
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Window brightness 0..1 (value < 0 = give control back to the system).
+  Future<bool> setBrightness(double value) => _bool('setBrightness', {'value': value});
+
+  Future<double> getBrightness() async {
+    if (!isAndroid) return 0.5;
+    try {
+      return await _channel.invokeMethod<double>('getBrightness') ?? 0.5;
+    } catch (_) {
+      return 0.5;
+    }
+  }
+
+  /// Media volume as 0..1 (null when unknown).
+  Future<double?> getVolume() async {
+    if (!isAndroid) return null;
+    try {
+      final r = await _channel.invokeMethod<Map<Object?, Object?>>('getVolume');
+      if (r == null) return null;
+      final cur = (r['cur'] as num?)?.toDouble() ?? 0;
+      final max = (r['max'] as num?)?.toDouble() ?? 1;
+      _volumeMax = max.toInt();
+      return max <= 0 ? null : (cur / max).clamp(0.0, 1.0);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int? _volumeMax;
+
+  /// Sets the media volume from a 0..1 fraction (no system volume popup).
+  Future<bool> setVolume(double fraction) async {
+    if (!isAndroid) return false;
+    try {
+      if (_volumeMax == null) await getVolume();
+      final max = _volumeMax ?? 15;
+      return await _channel.invokeMethod<bool>('setVolume', {'index': (fraction.clamp(0.0, 1.0) * max).round()}) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> keepScreenOn(bool on) => _bool('keepScreenOn', {'on': on});
 
   Future<bool> _bool(String method, [Map<String, Object?>? args]) async {
     if (!isAndroid) return false;

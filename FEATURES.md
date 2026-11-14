@@ -55,6 +55,13 @@ Legend: [x] done in code (untested on device) | [ ] planned
 - [ ] Dash: Bluetooth / Wi-Fi Direct (Nearby Connections), encryption, resume, desktop tests
 - [ ] Viewer toolbar in EPUB/archive viewers, image lens/OCR, free-hand crop, multi-select picker in Dash
 
+## Session 11: Video player v1 (code written, awaiting first compile + device test)
+- [x] Own player screen: gestures (seek, brightness, volume, pinch zoom, double-tap skip, hold 2x), aspect modes, lock, rotate, speed, repeat, shuffle, folder queue, resume
+- [x] Subtitles SRT / VTT / ASS-SSA: auto sidecar, choose file, delay, size, colour, outline, background; remembered per video
+- [x] Video library: All / Folders / Recent / Favorites, search, sort, list/grid, thumbnails + duration, watched progress, multi-select actions
+- [x] Details sheet (container, tracks), playlist sheet, honest unsupported-codec screen, Settings > Media > Video player
+- [ ] v2 (needs a stronger engine): audio-track + embedded-subtitle selection, Picture-in-Picture, frame-step, chapters, software decoders, network streams, trim/convert tools
+
 ## Ideas taken from other file managers
 (From general knowledge of Google Files, Xiaomi/MIUI, Samsung My Files, Oppo/Realme (ColorOS), iOS Files, Windows Explorer,
 macOS Finder, Linux file managers. Own UI and names; nothing copied.)

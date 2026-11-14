@@ -12,6 +12,10 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.Drawable
+import android.media.AudioManager
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -20,6 +24,7 @@ import android.os.StatFs
 import android.os.storage.StorageManager
 import android.provider.OpenableColumns
 import android.provider.Settings
+import android.view.WindowManager
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import com.ryanheise.audioservice.AudioServiceActivity
@@ -40,6 +45,7 @@ class MainActivity : AudioServiceActivity() {
     private var channel: MethodChannel? = null
     private val ready = ArrayList<String>()
     private val pool = Executors.newFixedThreadPool(2)
+    private val thumbPool = Executors.newFixedThreadPool(2)
     private var clearCacheResult: MethodChannel.Result? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
@@ -133,6 +139,67 @@ class MainActivity : AudioServiceActivity() {
                         val i = Intent(Settings.ACTION_WIFI_SETTINGS)
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         startActivity(i)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                // ---- video player ----
+                "videoInfo" -> videoInfo(call.argument<String>("path"), result)
+                "videoThumb" -> videoThumb(call.argument<String>("path"), call.argument<Int>("width") ?: 320, result)
+                "setBrightness" -> {
+                    try {
+                        val v = (call.argument<Double>("value") ?: -1.0).toFloat()
+                        val lp = window.attributes
+                        lp.screenBrightness = if (v < 0f) WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE else v.coerceIn(0.01f, 1f)
+                        window.attributes = lp
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "getBrightness" -> {
+                    try {
+                        val cur = window.attributes.screenBrightness
+                        if (cur >= 0f) {
+                            result.success(cur.toDouble())
+                        } else {
+                            result.success(Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS) / 255.0)
+                        }
+                    } catch (e: Exception) {
+                        result.success(0.5)
+                    }
+                }
+                "getVolume" -> {
+                    try {
+                        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        result.success(
+                            mapOf(
+                                "cur" to am.getStreamVolume(AudioManager.STREAM_MUSIC),
+                                "max" to am.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
+                            )
+                        )
+                    } catch (e: Exception) {
+                        result.success(null)
+                    }
+                }
+                "setVolume" -> {
+                    try {
+                        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                        am.setStreamVolume(AudioManager.STREAM_MUSIC, (call.argument<Int>("index") ?: 0).coerceIn(0, max), 0)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.success(false)
+                    }
+                }
+                "keepScreenOn" -> {
+                    try {
+                        if (call.argument<Boolean>("on") == true) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        }
                         result.success(true)
                     } catch (e: Exception) {
                         result.success(false)
@@ -426,6 +493,117 @@ class MainActivity : AudioServiceActivity() {
         } catch (e: Exception) {
             clearCacheResult = null
             result.success("error: " + e.message)
+        }
+    }
+
+    // ------------------------------------------------------------------ video
+
+    private fun numberOf(f: MediaFormat, key: String): Double? {
+        if (!f.containsKey(key)) return null
+        try {
+            return f.getInteger(key).toDouble()
+        } catch (e: Exception) {
+        }
+        try {
+            return f.getFloat(key).toDouble()
+        } catch (e: Exception) {
+        }
+        try {
+            return f.getLong(key).toDouble()
+        } catch (e: Exception) {
+        }
+        return null
+    }
+
+    /** Container + stream details of a video (or audio) file. Never throws. */
+    private fun videoInfo(path: String?, result: MethodChannel.Result) {
+        thumbPool.execute {
+            val out = HashMap<String, Any?>()
+            val r = MediaMetadataRetriever()
+            try {
+                r.setDataSource(path!!)
+                out["durationMs"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                out["width"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                out["height"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                out["rotation"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                out["bitrate"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull() ?: 0L
+                out["mime"] = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+                if (Build.VERSION.SDK_INT >= 28) {
+                    val frames = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_FRAME_COUNT)?.toLongOrNull() ?: 0L
+                    val dur = (out["durationMs"] as Long)
+                    if (frames > 0 && dur > 0) out["fps"] = frames * 1000.0 / dur
+                }
+            } catch (e: Exception) {
+            } finally {
+                try {
+                    r.release()
+                } catch (e: Exception) {
+                }
+            }
+            val tracks = ArrayList<Map<String, Any?>>()
+            val ex = MediaExtractor()
+            try {
+                ex.setDataSource(path!!)
+                for (i in 0 until ex.trackCount) {
+                    val f = ex.getTrackFormat(i)
+                    val mime = f.getString(MediaFormat.KEY_MIME) ?: ""
+                    val t = HashMap<String, Any?>()
+                    t["mime"] = mime
+                    t["type"] = when {
+                        mime.startsWith("video/") -> "video"
+                        mime.startsWith("audio/") -> "audio"
+                        mime.startsWith("text/") || mime.contains("subrip") || mime.contains("vtt") || mime.contains("ssa") || mime.contains("subtitle") -> "text"
+                        else -> "other"
+                    }
+                    if (f.containsKey(MediaFormat.KEY_LANGUAGE)) t["lang"] = f.getString(MediaFormat.KEY_LANGUAGE)
+                    numberOf(f, MediaFormat.KEY_CHANNEL_COUNT)?.let { t["channels"] = it.toInt() }
+                    numberOf(f, MediaFormat.KEY_SAMPLE_RATE)?.let { t["sampleRate"] = it.toInt() }
+                    numberOf(f, MediaFormat.KEY_WIDTH)?.let { t["width"] = it.toInt() }
+                    numberOf(f, MediaFormat.KEY_HEIGHT)?.let { t["height"] = it.toInt() }
+                    numberOf(f, MediaFormat.KEY_FRAME_RATE)?.let { t["fps"] = it }
+                    numberOf(f, MediaFormat.KEY_BIT_RATE)?.let { t["bitrate"] = it.toLong() }
+                    tracks.add(t)
+                }
+            } catch (e: Exception) {
+            } finally {
+                try {
+                    ex.release()
+                } catch (e: Exception) {
+                }
+            }
+            out["tracks"] = tracks
+            runOnUiThread { result.success(out) }
+        }
+    }
+
+    /** One JPEG frame (about 10% into the video) for the library grid. */
+    private fun videoThumb(path: String?, width: Int, result: MethodChannel.Result) {
+        thumbPool.execute {
+            var bytes: ByteArray? = null
+            val r = MediaMetadataRetriever()
+            try {
+                r.setDataSource(path!!)
+                val dur = r.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                val atUs = (dur / 10).coerceAtMost(10_000L) * 1000L
+                val bmp = r.getFrameAtTime(atUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                if (bmp != null) {
+                    val w = width.coerceIn(64, 1024)
+                    val h = (bmp.height.toLong() * w / bmp.width).toInt().coerceAtLeast(1)
+                    val scaled = Bitmap.createScaledBitmap(bmp, w, h, true)
+                    val bos = ByteArrayOutputStream()
+                    scaled.compress(Bitmap.CompressFormat.JPEG, 80, bos)
+                    bytes = bos.toByteArray()
+                    if (scaled !== bmp) scaled.recycle()
+                    bmp.recycle()
+                }
+            } catch (e: Throwable) {
+            } finally {
+                try {
+                    r.release()
+                } catch (e: Exception) {
+                }
+            }
+            runOnUiThread { result.success(bytes) }
         }
     }
 
