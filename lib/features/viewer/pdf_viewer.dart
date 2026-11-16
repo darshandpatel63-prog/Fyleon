@@ -5,6 +5,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import '../../core/utils/format.dart';
 import '../../shared/widgets/bottom_safe.dart';
+import '../../shared/widgets/full_screen_stack.dart';
 import '../../shared/widgets/page_indicator_pill.dart';
 import '../files/domain/file_item.dart';
 import 'viewer_chrome.dart';
@@ -153,7 +154,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     final doc = _doc!;
     final total = doc.pages.length;
     void go(int n) => _controller.goToPage(pageNumber: n.clamp(1, total));
-    return Stack(
+    return FullScreenStack(
       children: [
         PdfViewer(
           PdfDocumentRefDirect(doc),

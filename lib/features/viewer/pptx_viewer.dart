@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../shared/widgets/bottom_safe.dart';
+import '../../shared/widgets/full_screen_stack.dart';
 import '../../shared/widgets/page_indicator_pill.dart';
 import '../files/domain/file_item.dart';
 import 'pptx_parser.dart';
@@ -91,7 +92,7 @@ class _PptxViewerScreenState extends State<PptxViewerScreen> {
           final deck = snap.data!;
           _count = deck.slides.length;
           if (!_grid) return _show(deck);
-          return Stack(
+          return FullScreenStack(
             children: [
               _list(deck),
               BottomRightOverlay(

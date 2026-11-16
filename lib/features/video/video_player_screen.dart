@@ -14,6 +14,7 @@ import 'package:video_player/video_player.dart';
 import '../../core/native/native_bridge.dart';
 import '../../core/utils/format.dart';
 import '../../shared/widgets/animations.dart';
+import '../../shared/widgets/full_screen_stack.dart';
 import '../files/domain/file_item.dart';
 import '../viewer/audio_engine.dart';
 import '../viewer/file_neighbors.dart';
@@ -1308,7 +1309,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     return LayoutBuilder(
       builder: (context, cons) {
         _box = Size(cons.maxWidth, cons.maxHeight);
-        return Stack(
+        // FullScreenStack: a plain Stack collapses to 0 x 0 here (see its comment) and the screen stayed black
+        return FullScreenStack(
           children: [
             Positioned.fill(
               child: GestureDetector(

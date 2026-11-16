@@ -26,5 +26,9 @@
 - Apps screen: pill tabs, filter chips, long-press = multi-select with a bottom summary (cache + size) and actions.
 - Dash: animated radar rings while searching, gradient Send / Receive cards, QR + big spaced code on the sender, avatars for devices.
 
+## Layout rule that cost us a black screen
+Never use a plain `Stack` for a full-screen layer: it shrinks to its non-positioned children and a single `SizedBox.shrink()` makes it 0 x 0 (nothing visible, nothing touchable).
+Use `FullScreenStack` (shared/widgets/full_screen_stack.dart) or give the Stack only `Positioned` children.
+
 ## Accessibility
 Tooltips on icon buttons, text scaling respected, contrast from Material color schemes. Review before release.

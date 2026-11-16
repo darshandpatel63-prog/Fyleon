@@ -357,9 +357,9 @@ def patch_extras(cfg):
             end = text.rfind("</manifest>")
             text = text[:end] + "    <queries>" + QUERIES_LAUNCHER + "</queries>\n" + text[end:]
 
-    # Impeller (Flutter's newer renderer) can blank video pictures / the whole screen on some phones.
-    # Default here: use the older, proven renderer. Set "features": {"impeller": true} in the config to switch it back on.
-    impeller = bool((cfg.get("features") or {}).get("impeller", False))
+    # Flutter's default renderer (Impeller) is used. Only when the config says "features": {"impeller": false}
+    # the older renderer is requested (a switch for phones that show graphics bugs).
+    impeller = bool((cfg.get("features") or {}).get("impeller", True))
     text = re.sub(r'[ \t]*<meta-data\s+android:name="io\.flutter\.embedding\.android\.EnableImpeller"[^>]*/>[ \t]*\n?', "", text)
     if not impeller:
         end = text.rfind("</application>")

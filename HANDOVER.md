@@ -1,6 +1,6 @@
 # HANDOVER (read this first in every new chat)
 
-Last updated: 2026-11-16, end of session 13 (black-screen fix attempt 2; sessions 12, 11, 10, 9 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
+Last updated: 2026-11-17, end of session 14 (black screen root cause fixed; sessions 13, 12, 11, 10, 9 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
 
 ## Rules for the next session
 1. Read this file, then ROADMAP.md. Continue from "Next steps". Do NOT restart or re-plan.
@@ -212,6 +212,18 @@ Done:
 - Tests: `test/session8_test.dart` (toolbar layout, crop math, rotate/crop with the image package, apps filter, Dash helpers, loopback
   transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
 - Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
+
+## Session 14: THE black video screen: found and fixed (owner sent the repo ZIP + the b45 debug APK)
+Checked first: the owner's repo = my code (only pubspec.lock differs: the CI added the session-8 packages), the APK b45 contains the session-13 code (status line, decoder check strings), so the black screen was NOT an old build.
+Root cause: in `video_player_screen.dart` the full-screen layers were in a plain `Stack`. A Stack shrinks to its non-positioned children, and my "show nothing" widgets (`SizedBox.shrink()` from the resume banner,
+the subtitle layer, the notice layer) are non-positioned and 0 x 0. Inside a Scaffold body (loose constraints) that makes the Stack 0 x 0, so the picture, the controls and the gesture detector all had zero size:
+black screen, sound still plays, nothing reacts. (Flutter rule in RenderStack: with non-positioned children the size = the biggest child, not the biggest constraint.) The old player had a real non-positioned child, so it worked.
+Fix: new `lib/shared/widgets/full_screen_stack.dart` (`SizedBox.expand` + `Stack(fit: StackFit.expand)`), used by the video player, and also by the PDF and PowerPoint viewers (their Stack had the same risk).
+`test/layout_test.dart` documents the bug (plain Stack = 0 x 0) and proves FullScreenStack fills the screen.
+RULE for the future: never use a plain Stack for a full-screen layer; use FullScreenStack (or only Positioned children).
+Reverted guesses of sessions 12/13 that were not the cause: the Impeller opt-out is OFF again (default renderer; config `"features": {"impeller": false}` still allows the old renderer). Kept because they are harmless or useful:
+safe thumbnails, decoder diagnostics, stall watchdog, playback log, status line, sleep timer, frame step, window changes (hide system bars, rotation) now opt-in.
+Next: test the player again. Then Gallery v1. Media3 engine only if a real decoder/engine problem shows up in the log.
 
 ## Session 13: black screen in the video player (owner: "black screen, sound plays, no buttons, gestures do nothing")
 Reading of the problem: audio plays but NOTHING of Flutter's UI (controls, HUD) is visible or reacts = the whole Flutter picture is blank while the player route is open; after Back the app is fine.
