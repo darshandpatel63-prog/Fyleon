@@ -110,6 +110,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   Offset _tapAt = Offset.zero;
   double _speedBeforeLongPress = 1;
 
+  // window changes we made (only these are undone on exit)
+  bool _immersiveOn = false;
+  bool _orientationTouched = false;
+
   // diagnostics + safety nets
   final Stopwatch _openWatch = Stopwatch();
   final DateTime _t0 = DateTime.now();
@@ -153,7 +157,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     WidgetsBinding.instance.addObserver(this);
     // no thumbnail / media work next to the player: it would fight the video decoder
     VideoThumbCache.paused = true;
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (_s.immersive) {
+      _immersiveOn = true;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
     if (_s.keepScreenOn) NativeBridge.instance.keepScreenOn(true);
     NativeBridge.instance.getBrightness().then((v) => _bright = v);
     NativeBridge.instance.getVolume().then((v) => _vol = v ?? _vol);
@@ -177,8 +184,8 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     c?.removeListener(_onTick);
     c?.dispose();
     if (_audioMode) AudioEngine.instance.stop();
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    if (_orientationTouched) SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    if (_immersiveOn) SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     NativeBridge.instance.keepScreenOn(false);
     NativeBridge.instance.setBrightness(-1);
     _pos.dispose();
@@ -189,6 +196,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _logAdd('app is now: ${state.name}');
     final c = _c;
     if (c == null) return;
     if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
@@ -375,7 +383,10 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   }
 
   void _applyOrientation(VideoPlayerController c) {
+    if (_s.orientation != OrientationMode.system) _orientationTouched = true;
     switch (_s.orientation) {
+      case OrientationMode.system:
+        break;
       case OrientationMode.auto:
         final wide = c.value.aspectRatio >= 1;
         SystemChrome.setPreferredOrientations(wide
@@ -391,6 +402,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   }
 
   void _rotate() {
+    _orientationTouched = true;
     final landscape = MediaQuery.orientationOf(context) == Orientation.landscape;
     SystemChrome.setPreferredOrientations(
       landscape ? [DeviceOrientation.portraitUp] : [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight],
@@ -1061,7 +1073,13 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
     final c = _c;
     if (c != null) _applyOrientation(c);
     NativeBridge.instance.keepScreenOn(_s.keepScreenOn);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (_s.immersive && !_immersiveOn) {
+      _immersiveOn = true;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else if (!_s.immersive && _immersiveOn) {
+      _immersiveOn = false;
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     _scheduleHide();
   }
 
@@ -1122,6 +1140,31 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
   Future<void> _retry() async {
     _logAdd('retry');
     await _open(_item);
+  }
+
+  /// Always-visible status line: if you can read this, Flutter is drawing; if the picture is black the problem is the video surface.
+  Widget _diagLayer() {
+    return Positioned(
+      left: 6,
+      bottom: 0,
+      child: SafeArea(
+        child: IgnorePointer(
+          child: ValueListenableBuilder<Duration>(
+            valueListenable: _pos,
+            builder: (context, pos, _) {
+              final c = _c;
+              final size = c == null ? '' : '${c.value.size.width.round()}x${c.value.size.height.round()}';
+              final state = _audioMode ? 'audio-only' : (_isPlaying ? 'playing' : 'paused');
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(6)),
+                child: Text('$state  ${formatClock(pos)}  $size', style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _noticeLayer() {
@@ -1285,6 +1328,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> with Widg
             _hudLayer(),
             _resumeBanner(),
             _noticeLayer(),
+            if (_s.diagnostics) _diagLayer(),
             if (_ended)
               Center(
                 child: IconButton.filled(

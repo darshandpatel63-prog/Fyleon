@@ -357,12 +357,21 @@ def patch_extras(cfg):
             end = text.rfind("</manifest>")
             text = text[:end] + "    <queries>" + QUERIES_LAUNCHER + "</queries>\n" + text[end:]
 
+    # Impeller (Flutter's newer renderer) can blank video pictures / the whole screen on some phones.
+    # Default here: use the older, proven renderer. Set "features": {"impeller": true} in the config to switch it back on.
+    impeller = bool((cfg.get("features") or {}).get("impeller", False))
+    text = re.sub(r'[ \t]*<meta-data\s+android:name="io\.flutter\.embedding\.android\.EnableImpeller"[^>]*/>[ \t]*\n?', "", text)
+    if not impeller:
+        end = text.rfind("</application>")
+        if end != -1:
+            text = text[:end] + '        <meta-data android:name="io.flutter.embedding.android.EnableImpeller" android:value="false"/>\n    ' + text[end:]
+
     if "fyleon-audio-service" not in text:
         end = text.rfind("</application>")
         if end != -1:
             text = text[:end] + AUDIO_SERVICE_XML + text[end:]
     MANIFEST.write_text(text, "utf-8")
-    print(f"extras ok (queryAllPackages: {query_all})")
+    print(f"extras ok (queryAllPackages: {query_all}, impeller: {impeller})")
 
 
 if __name__ == "__main__":

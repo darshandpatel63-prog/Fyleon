@@ -6,7 +6,8 @@ import 'package:path/path.dart' as p;
 
 enum ResumeMode { ask, auto, never }
 
-enum OrientationMode { auto, sensor, landscape, portrait }
+/// system = do not touch the phone's rotation at all (default); auto = follow the video's shape.
+enum OrientationMode { system, auto, sensor, landscape, portrait }
 
 enum AspectMode { fit, fill, stretch, original, r16x9, r4x3 }
 
@@ -56,7 +57,7 @@ class VideoSettings {
     this.leftHanded = false,
     this.sensitivity = 1.0,
     this.defaultAspect = AspectMode.fit,
-    this.orientation = OrientationMode.auto,
+    this.orientation = OrientationMode.system,
     this.autoNext = true,
     this.keepScreenOn = true,
     this.controlsHideSeconds = 4,
@@ -67,6 +68,8 @@ class VideoSettings {
     this.subBottom = 40,
     this.subAuto = true,
     this.thumbnails = true,
+    this.immersive = false,
+    this.diagnostics = true,
   });
 
   final int skipSeconds;
@@ -96,6 +99,12 @@ class VideoSettings {
   /// Video pictures in the library (the phone makes them one at a time; turn off if an old phone struggles).
   final bool thumbnails;
 
+  /// Hide the Android status + navigation bars while playing. OFF by default: changing the window can blank the picture on some phones.
+  final bool immersive;
+
+  /// A small status line on the picture (state, time, size) so a black screen can be told apart from a frozen one.
+  final bool diagnostics;
+
   VideoSettings copyWith({
     int? skipSeconds,
     ResumeMode? resumeMode,
@@ -121,6 +130,8 @@ class VideoSettings {
     int? subBottom,
     bool? subAuto,
     bool? thumbnails,
+    bool? immersive,
+    bool? diagnostics,
   }) =>
       VideoSettings(
         skipSeconds: skipSeconds ?? this.skipSeconds,
@@ -147,6 +158,8 @@ class VideoSettings {
         subBottom: subBottom ?? this.subBottom,
         subAuto: subAuto ?? this.subAuto,
         thumbnails: thumbnails ?? this.thumbnails,
+        immersive: immersive ?? this.immersive,
+        diagnostics: diagnostics ?? this.diagnostics,
       );
 
   Map<String, Object?> toJson() => {
@@ -174,6 +187,8 @@ class VideoSettings {
         'sBottom': subBottom,
         'sAuto': subAuto,
         'thumbs': thumbnails,
+        'imm': immersive,
+        'diag': diagnostics,
       };
 
   static VideoSettings fromJson(Object? raw) {
@@ -215,6 +230,8 @@ class VideoSettings {
       subBottom: i('sBottom', d.subBottom, 0, 200),
       subAuto: b('sAuto', d.subAuto),
       thumbnails: b('thumbs', d.thumbnails),
+      immersive: b('imm', d.immersive),
+      diagnostics: b('diag', d.diagnostics),
     );
   }
 }

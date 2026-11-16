@@ -58,11 +58,13 @@ class VideoSettingsScreen extends ConsumerWidget {
           sw('Keep the screen on while playing', s.keepScreenOn, (x, v) => x.copyWith(keepScreenOn: v)),
           dropdown<AspectMode>('Default picture size', s.defaultAspect, [for (final a in AspectMode.values) (a, a.label)], (x, v) => x.copyWith(defaultAspect: v)),
           dropdown<OrientationMode>('Screen rotation', s.orientation, const [
+            (OrientationMode.system, 'Leave it to the phone'),
             (OrientationMode.auto, 'Follow the video'),
             (OrientationMode.sensor, 'Sensor'),
             (OrientationMode.landscape, 'Landscape'),
             (OrientationMode.portrait, 'Portrait'),
           ], (x, v) => x.copyWith(orientation: v)),
+          sw('Hide the status and navigation bars', s.immersive, (x, v) => x.copyWith(immersive: v), sub: 'Full screen. If the picture ever turns black, keep this OFF.'),
           ListTile(title: Text('Hide the controls after ${s.controlsHideSeconds} s')),
           Slider(value: s.controlsHideSeconds.toDouble(), min: 2, max: 10, divisions: 8, onChanged: (v) => n.update((x) => x.copyWith(controlsHideSeconds: v.round()))),
           Consumer(
@@ -93,6 +95,7 @@ class VideoSettingsScreen extends ConsumerWidget {
           sw('Dark background', s.subBackground, (x, v) => x.copyWith(subBackground: v)),
           ListTile(title: Text('Height from the bottom: ${s.subBottom}')),
           Slider(value: s.subBottom.toDouble(), min: 0, max: 200, onChanged: (v) => n.update((x) => x.copyWith(subBottom: v.round()))),
+          sw('Show a small status line on the picture', s.diagnostics, (x, v) => x.copyWith(diagnostics: v), sub: 'Playing / paused, time and size. Helps to find problems.'),
           section('DATA ON THIS PHONE'),
           sw('Show pictures of the videos in the library', s.thumbnails, (x, v) => x.copyWith(thumbnails: v), sub: 'Made one at a time by Android and never while a video plays. Turn off if the phone is slow.'),
           const _ThumbTile(),

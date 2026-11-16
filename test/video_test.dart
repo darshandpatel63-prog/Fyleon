@@ -181,6 +181,19 @@ Dialogue: 0,0:00:01.50,0:00:03.00,Default,,0,0,0,,{\i1}Hello{\i0}\Nworld, with c
       expect(DecoderCheck.fromMap({}), isNull);
     });
 
+    test('the player does not touch the window by default', () {
+      const d = VideoSettings();
+      expect(d.immersive, isFalse);
+      expect(d.orientation, OrientationMode.system);
+      expect(d.diagnostics, isTrue);
+      final back = VideoSettings.fromJson(d.copyWith(immersive: true, orientation: OrientationMode.landscape, diagnostics: false).toJson());
+      expect(back.immersive, isTrue);
+      expect(back.orientation, OrientationMode.landscape);
+      expect(back.diagnostics, isFalse);
+      expect(VideoSettings.fromJson({'orient': 'auto'}).orientation, OrientationMode.auto);
+      expect(VideoSettings.fromJson({'orient': 'zzz'}).orientation, OrientationMode.system);
+    });
+
     test('resume point', () {
       const d = Duration(seconds: 100);
       expect(resumePoint(const Duration(seconds: 5), d), isNull);

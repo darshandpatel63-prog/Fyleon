@@ -1,6 +1,6 @@
 # HANDOVER (read this first in every new chat)
 
-Last updated: 2026-11-15, end of session 12 (video player regression fix; sessions 11, 10, 9 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
+Last updated: 2026-11-16, end of session 13 (black-screen fix attempt 2; sessions 12, 11, 10, 9 below). Older line: end of session 8 (owner feedback round: dock fix, viewers, Apps, Dash, background audio).
 
 ## Rules for the next session
 1. Read this file, then ROADMAP.md. Continue from "Next steps". Do NOT restart or re-plan.
@@ -212,6 +212,20 @@ Done:
 - Tests: `test/session8_test.dart` (toolbar layout, crop math, rotate/crop with the image package, apps filter, Dash helpers, loopback
   transfer incl. wrong code and accept flow). `flutter test` runs BEFORE the build in CI: if one of these fails, send the log.
 - Other file managers (from general knowledge, not freshly researched): see FEATURES.md "Ideas taken from other file managers".
+
+## Session 13: black screen in the video player (owner: "black screen, sound plays, no buttons, gestures do nothing")
+Reading of the problem: audio plays but NOTHING of Flutter's UI (controls, HUD) is visible or reacts = the whole Flutter picture is blank while the player route is open; after Back the app is fine.
+In sessions 11/12 the player changed the WINDOW when it opened (hide system bars = `SystemUiMode.immersiveSticky`, rotation lock = `setPreferredOrientations`, keep-screen-on); the old player that worked changed nothing.
+Window/surface changes right when a video texture is created are a known way to blank the Flutter surface on some phones (Impeller/Vulkan). NOT proven; no phone here.
+Changes (code written, NOT compiled):
+- The player no longer changes the window by default: `immersive` OFF, `orientation` = new value `system` (do not touch rotation), both only done when the owner turns them on in Settings > Media > Video player;
+  on exit only what was changed is undone. The Rotate button still works (explicit tap).
+- Impeller opt-out in the manifest by default (`io.flutter.embedding.android.EnableImpeller=false`, added by `tool/patch_android.py`; config `"features": {"impeller": true}` switches it back on). If Flutter ignores the flag nothing happens.
+- Always-visible small status line on the picture ("playing 0:12 720x1600"), setting "Show a small status line", plus app lifecycle events in the Playback log.
+  Reading it: status line visible + picture black = the video surface is the problem; status line NOT visible = Flutter is not drawing at all.
+- Tests: `test/video_test.dart` checks the new defaults.
+If it is STILL black after this build: send (1) whether the status line is visible, (2) the device model + Android version, (3) the Playback log (More > Video details > Copy).
+Next engine idea (not built): a native Media3 player in its own Activity (no Flutter texture at all) with audio/subtitle track menus, PiP and speed; it would also be the "v2" the owner asked for.
 
 ## Session 12: video player regression fix (owner screen recordings of the new vs the old app)
 Evidence (two recordings): the OLD app plays `screen-20260503-184423.mp4` fine; the NEW app (session 11) shows a black screen for 7+ seconds, no controls, the library thumbnail never appears
